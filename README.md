@@ -16,6 +16,7 @@ Minimum requirements:
 
 Additional stuff:
 
+- Network forms a group to which every client can send messages to
 - Encrypted messages
 - Authentication to the network
 - Removing non-compliant clients from the network
