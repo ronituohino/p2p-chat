@@ -1,5 +1,5 @@
 def main():
-    print("Hello from groupchat!")
+    print("Hello from node!")
 
 
 if __name__ == "__main__":

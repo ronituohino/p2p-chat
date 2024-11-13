@@ -1,0 +1,10 @@
+# https://docs.astral.sh/ruff/settings/
+
+line-length = 88
+
+[format]
+quote-style = "double"
+indent-style = "tab"
+docstring-code-format = true
+line-ending = "lf"
+skip-magic-trailing-comma = true

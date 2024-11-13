@@ -2,30 +2,41 @@
 
 Group project for Distributed Systems course.
 
-Idea:
+Kozheen Taher Esa  
+Joonas Ahovalli  
+Roni Tuohino  
 
-- Peer-to-Peer chat application
-- CLI frontend
-- Python
-- gRPC
+A peer-to-peer (P2P) chat application. The main functionality is creating
+networks (Networks / Groups / Chats), which can be thought of as group chats. A client
+(Node) can join a network by contacting the leader of the network. The leaders of each
+network are elected from the nodes of the network using election algorithms. The leaders of
+all networks are stored in a central Node Discovery Service (NDS) through which a Node
+can discover existing networks and the addresses of the leaders.
 
-Minimum requirements:
+## Discussion for next week
 
-- Can send messages (1:1) to other active clients (each client is a node) in the
-  network
+- Should we develop in [containers](https://docs.astral.sh/uv/guides/integration/docker/#developing-in-a-container)?  
+Could be nice because we could do a docker-compose file with nds and like 3 copies of node, and they would update when code changes.
 
-Required parts:
+- ruff & config
 
-- Discovery, 2 approaches
-  - Using other nodes (needs a node address to connect to network, and fetches
-    other addresses through that node)
-  - Using central discovery node (all nodes in network register to a discovery
-    node when connecting to network)
+- uv build-system, scripts
 
-Additional stuff:
+## Development
 
-- Network forms a group chat to which every client can send messages to
-- Message replication to multiple nodes for fault tolerance
-- Encrypted messages
-- Authentication to the network
-- Removing non-compliant clients from the network
+Make sure you have the [uv](https://docs.astral.sh/uv/) package manager installed.
+
+Code is formatted and linted using [ruff](https://docs.astral.sh/ruff/).
+VS Code has a nice extension for it, be sure to enable it as the default Python formatter.
+
+Install dependencies for nds:
+```
+cd nds
+uv sync
+```
+
+Install dependencies for node:
+```
+cd node
+uv sync
+```
