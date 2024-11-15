@@ -1,8 +1,13 @@
 import grpc
+import shelve
+import random
+from concurrent import futures
+
 from protos import health_pb2, health_pb2_grpc
 from protos import network_pb2, network_pb2_grpc
 from protos import peer_pb2, peer_pb2_grpc
-import shelve
+
+
 
 class PeerService(peer_pb2_grpc.PeerServiceServicer):
     def __init__(self, ip, nds_ip, channel_port=50051):
@@ -28,7 +33,6 @@ class PeerService(peer_pb2_grpc.PeerServiceServicer):
     
     def get_messages(self, chat_id):
         """Retrieve all messages for a given chat_id."""
-        chat_id = request.chat_id
         messages = self.message_store.get(chat_id, [])
         return messages
 
@@ -39,19 +43,19 @@ class PeerService(peer_pb2_grpc.PeerServiceServicer):
             response = stub.GetNetworks(network_pb2.GetNetworksRequest())
             return response.networks
     
-    def stub_join_network(self, leader_ip):
+    def stub_join_network(self, leader_ip, chat_id):
         with grpc.insecure_channel(leader_ip) as channel:
             stub = peer_pb2_grpc.PeerServiceStub(channel)
-            response = stub.JoinNetwork(peer_pb2.JoinNetworkRequest(peer_ip=self.ip))
+            response = stub.JoinNetwork(peer_pb2.JoinNetworkRequest(peer_ip=leader_ip, chat_id=chat_id))
             if response.success:
                 self.networks[chat_id] = {
                     "peer_id": response.assigned_peer_id,
                     "leader_ip": response.leader_ip,
                     "peers": {peer.id: peer.ip for peer in response.peers}
                 }
-                    print(f"Joined network with Peer ID: {response.assigned_peer_id}")
-                else:
-                    print("Failed to join network")
+                print(f"Joined network with Peer ID: {response.assigned_peer_id}")
+            else:
+                print("Failed to join network")
 
     def stub_create_network(self, chat_name):
         """Create a new network and register it with NDS, making this peer the leader."""
@@ -63,9 +67,9 @@ class PeerService(peer_pb2_grpc.PeerServiceServicer):
             if response.success:
                 chat_id = response.chat_id
                 self.networks[chat_id] = {
-                    "leader_ip": self.ip
-                    "peer_id": 0
-                    "peers": {}
+                    "leader_ip": self.ip,
+                    "peer_id": 0,
+                    "peers": {},
                 }
 
                 self.is_leader[chat_id] = True
@@ -84,7 +88,7 @@ class PeerService(peer_pb2_grpc.PeerServiceServicer):
         
         network = self.networks[chat_id]
         peer_id = max(network["peers"].keys(), default=0) + 1
-        self.peers[self.peer_id] = request.peer_ip
+        self.peers[peer_id] = request.peer_ip
         network["peers"][peer_id] = request.peer_ip
         print(f"Peer {self.peer_id} joined with IP {request.peer_ip}")
         return peer_pb2.JoinNetworkResponse(
@@ -95,7 +99,7 @@ class PeerService(peer_pb2_grpc.PeerServiceServicer):
             peers=[peer_pb2.PeerInfo(ip=ip, id=id) for id, ip in network["peers"].items()]
         )
     
-    def LeaveNetwork(slef, request, context):
+    def LeaveNetwork(self, request, context):
         """Handles leaving the network"""
         chat_id = request.chat_id
         if not self.is_leader.get(chat_id, False):
@@ -132,7 +136,7 @@ class PeerService(peer_pb2_grpc.PeerServiceServicer):
             else:
                 return peer_pb2.MessageResponse(success=False, message="Destination peer not found")
 
-    def flood_message(self, chat_id, msg_id, source_id, msg):
+    def flood_message_randomly(self, chat_id, msg_id, source_id, msg):
         """Flood a message to all peers."""
         network = self.networks.get(chat_id)
         if not network:
@@ -189,15 +193,16 @@ class PeerService(peer_pb2_grpc.PeerServiceServicer):
         """Respond to a liveness check."""
         return peer_pb2.LivenessPingResponse(success=True)
 
-def serve():
+def serve(ip, nds_ip, port):
 	server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 	health_pb2_grpc.add_HealthServicer_to_server(HealthServicer(), server)
 	network_pb2_grpc.add_NetworkServiceServicer_to_server(NetworkService(), server)
+    
     peer_service = PeerService(ip=ip, nds_ip=nds_ip, channel_port)
     peer_pb2_grpc.add_PeerServiceServicer_to_server(peer_service, server)
-	server.add_insecure_port('[::]:{port}')
+	server.add_insecure_port(f'[::]:{port}')
 	server.start()
-	print("Server is running on {ip}:{port}")
+	print(f"Server is running on {ip}:{port}")
 	server.wait_for_termination()
 
 if __name__ == "__main__":
