@@ -1,0 +1,64 @@
+syntax = "proto3";
+package network;
+
+service NetworkService {
+    // Define the createNetwork RPC method
+    rpc CreateNetwork(CreateNetworkRequest) returns (CreateNetworkResponse);
+
+    // Method to get information about network
+    rpc GetNetworks(GetNetworksRequest) returns (GetNetworksResponse);
+
+    // Method to check liveness of a node
+    rpc Liveness(LivenessRequest) returns (LivenessResponse);
+    
+    // Method to update a network leader
+    rpc UpdateNetworkLeader(UpdateNetworkLeaderRequest) returns (UpdateNetworkLeaderResponse);
+}
+
+// Request message for createNetwork
+message CreateNetworkRequest {
+    string leader_ip = 1;
+    string chat_name = 2;
+}
+
+// Response message for createNetwork
+message CreateNetworkResponse {
+    bool success = 1;
+    string chat_id = 2;
+    string message = 3;
+}
+
+// Request message for listing networks
+message GetNetworksRequest {}
+
+// Response about networks information
+message GetNetworksResponse {
+    repeated NetworkInfo networks = 1;
+}
+
+message NetworkInfo {
+    string leader_ip = 1;
+    string chat_id = 2;
+    string chat_name = 3;
+}
+
+// Request to check liveness of a node
+message LivenessRequest {
+    string ip = 1;
+}
+
+// Response message for createNetwork
+message LivenessResponse {
+    bool is_alive = 1;
+    string message = 2;
+}
+
+message UpdateNetworkLeaderRequest {
+    string chat_id = 1;
+    string new_leader_ip = 2;
+}
+
+message UpdateNetworkLeaderResponse {
+    bool success = 1;
+    string message = 2;
+}

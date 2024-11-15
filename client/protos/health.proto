@@ -1,0 +1,14 @@
+syntax = "proto3";
+package nds;
+
+service Health {
+    rpc Ping (HealthRequest) returns (HealthResponse);
+}
+
+message HealthRequest {
+    string name = 1;
+}
+
+message HealthResponse {
+    string message = 1;
+}

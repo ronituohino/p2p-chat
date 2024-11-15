@@ -35,8 +35,8 @@ cd nds
 uv sync
 ```
 
-Install dependencies for node:
+Install dependencies for client:
 ```
-cd node
+cd client
 uv sync
 ```

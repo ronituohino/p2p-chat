@@ -1,0 +1,73 @@
+syntax = "proto3";
+package peer;
+
+service PeerService {
+    rpc JoinNetwork(JoinNetworkRequest) returns (JoinNetworkResponse);
+    rpc LeaveNetwork(LeaveNetworkRequest) returns (LeaveNetworkResponse);
+    rpc Election(ElectionRequest) returns (ElectionResponse);
+    rpc Coordinator(CoordinatorRequest) returns (CoordinatorResponse);
+    rpc SendMessage(MessageRequest) returns (MessageResponse);
+    rpc ReceiveMessage(MessageRequest) returns (MessageResponse);
+    rpc LivenessPing(LivenessPingRequest) returns (LivenessPingResponse);
+}
+
+message JoinNetworkRequest {
+    string peer_ip = 1;
+    string chat_id = 2;
+}
+
+message JoinNetworkResponse {
+    bool success = 1;
+    string message = 2;
+    int32 assigned_peer_id = 3;
+    string leader_ip = 4;
+    repeated PeerInfo peers = 5; 
+}
+
+message LeaveNetworkRequest {
+    int32 peer_id = 1;
+    string chat_id = 2;
+}
+
+message LeaveNetworkResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message ElectionRequest {}
+
+message ElectionResponse {
+    bool success = 1;
+}
+
+message CoordinatorRequest {}
+
+message CoordinatorResponse {
+    bool success = 1;
+    string message = 2;
+    string coordinator_ip = 3;
+}
+
+message MessageRequest {
+    string chat_id = 1;
+    string msg_id = 2;     
+    int32 source_id = 3;
+    int32 destination_id = 4;
+    string msg = 5;
+}
+
+message MessageResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message PeerInfo {
+    string ip = 1;
+    int32 id = 2;
+}
+
+message LivenessPingRequest {}
+
+message LivenessPingResponse {
+    bool success = 1;
+}
