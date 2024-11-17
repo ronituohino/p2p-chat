@@ -7,7 +7,7 @@ from protos import health_pb2, health_pb2_grpc
 from protos import network_pb2, network_pb2_grpc
 from protos import peer_pb2, peer_pb2_grpc
 
-
+from ui import run
 
 class PeerService(peer_pb2_grpc.PeerServiceServicer):
     def __init__(self, ip, nds_ip, channel_port=50051):
@@ -198,12 +198,13 @@ def serve(ip, nds_ip, port):
 	health_pb2_grpc.add_HealthServicer_to_server(HealthServicer(), server)
 	network_pb2_grpc.add_NetworkServiceServicer_to_server(NetworkService(), server)
     
-    peer_service = PeerService(ip=ip, nds_ip=nds_ip, channel_port)
-    peer_pb2_grpc.add_PeerServiceServicer_to_server(peer_service, server)
+	peer_service = PeerService(ip, nds_ip, channel_port)
+	peer_pb2_grpc.add_PeerServiceServicer_to_server(peer_service, server)
 	server.add_insecure_port(f'[::]:{port}')
 	server.start()
 	print(f"Server is running on {ip}:{port}")
 	server.wait_for_termination()
 
 if __name__ == "__main__":
-    serve(ip="127.0.0.1", nds_ip="127.0.0.1", port=50051)
+	# serve(ip="127.0.0.1", nds_ip="127.0.0.1", port=50051)
+	run()
