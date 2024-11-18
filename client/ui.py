@@ -1,9 +1,32 @@
-from textual.app import App, ComposeResult, RenderResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Footer, Static, Input, Tree, Label, RichLog
+from textual.app import App, ComposeResult
+from textual.containers import Horizontal, Vertical, VerticalScroll, Grid
+from textual.screen import Screen
+from textual.widgets import Footer, Static, Input, Tree, RichLog, Button
 from textual.widget import Widget
 
-from textual.reactive import reactive
+banner = """
+  ██████╗ ██████╗ ██████╗        ██████╗██╗  ██╗ █████╗ ████████╗
+  ██╔══██╗╚════██╗██╔══██╗      ██╔════╝██║  ██║██╔══██╗╚══██╔══╝
+  ██████╔╝ █████╔╝██████╔╝█████╗██║     ███████║███████║   ██║   
+  ██╔═══╝ ██╔═══╝ ██╔═══╝ ╚════╝██║     ██╔══██║██╔══██║   ██║   
+  ██║     ███████╗██║           ╚██████╗██║  ██║██║  ██║   ██║   
+  ╚═╝     ╚══════╝╚═╝            ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   
+"""
+
+
+class AddDiscoverySource(Screen):
+	"""Screen with a dialog to add a new Discovery source"""
+
+	def compose(self) -> ComposeResult:
+		yield Grid(
+			Input(id="input"),
+			Button("Cancel", variant="error", id="cancel"),
+			Button("Add", variant="primary", id="add"),
+			id="dialog",
+		)
+
+	def on_button_pressed(self) -> None:
+		self.app.pop_screen()
 
 
 class Discovery(Static):
@@ -40,22 +63,18 @@ class Groups(Static):
 			yield tree
 
 
-class Message(Label):
-	def __init__(self, message, sender):
-		super().__init__()
-		self.message = message
-		self.sender = sender
-
-	def render(self) -> RenderResult:
-		return f"@{self.sender}: {self.message}"
-
-
 class Chat(Widget):
 	BORDER_TITLE = "Chat"
 
+	def write(self, msg: str):
+		self.query_one(RichLog).write(msg)
+
+	def on_mount(self):
+		self.write(banner)
+
 	def on_input_submitted(self, event: Input.Submitted):
 		event.input.clear()
-		self.query_one(RichLog).write(f"@me: {event.value}", animate=True)
+		self.write(f"@me: {event.value}")
 
 	def compose(self) -> ComposeResult:
 		yield RichLog(wrap=True, auto_scroll=True)
@@ -78,7 +97,7 @@ class ChatApp(App):
 
 	def action_add_discovery(self) -> None:
 		"""An action to add a new Discovery source"""
-		print("Implement")
+		self.push_screen(AddDiscoverySource())
 
 
 def run():
