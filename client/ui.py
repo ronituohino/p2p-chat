@@ -1,6 +1,6 @@
 from textual.app import App, ComposeResult, RenderResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Footer, Static, Input, Tree
+from textual.widgets import Footer, Static, Input, Tree, Label, RichLog
 from textual.widget import Widget
 
 from textual.reactive import reactive
@@ -40,9 +40,11 @@ class Groups(Static):
 			yield tree
 
 
-class Message(Widget):
-	message = reactive("")
-	sender = reactive("")
+class Message(Label):
+	def __init__(self, message, sender):
+		super().__init__()
+		self.message = message
+		self.sender = sender
 
 	def render(self) -> RenderResult:
 		return f"@{self.sender}: {self.message}"
@@ -51,19 +53,13 @@ class Message(Widget):
 class Chat(Widget):
 	BORDER_TITLE = "Chat"
 
-	# recompose=True rerenders entire component when chat_log changes
-	chat_log = reactive([], recompose=True)
-
 	def on_input_submitted(self, event: Input.Submitted):
-		print("hii!!")
-		new_chat_log = self.chat_log
-		new_chat_log.append(event.value)
+		event.input.clear()
+		self.query_one(RichLog).write(f"@me: {event.value}", animate=True)
 
 	def compose(self) -> ComposeResult:
-		with VerticalScroll():
-			for c in self.chat_log:
-				yield Message(message=c, sender="Roni")
-			yield Input(classes="message-input")
+		yield RichLog(wrap=True, auto_scroll=True)
+		yield Input(classes="message-input")
 
 
 class ChatApp(App):
