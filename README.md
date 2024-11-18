@@ -40,3 +40,21 @@ Install dependencies for client:
 cd client
 uv sync
 ```
+
+### Client ui development
+
+For effective ui development, launch textual development console:
+
+```
+uvx --from textual-dev textual console --port 7654 -x SYSTEM -x EVENT -x DEBUG -x INFO -x LOGGING
+```
+
+Textual logs can also be enabled by leaving out the "-x (CLASS)" clauses. More info on the [devtools here](https://textual.textualize.io/guide/devtools/#devtools). Textual can also be run on the browser, which is quite amazing. 
+
+After launching the dev console, start the ui itself in a separate terminal
+
+```
+uvx --from textual-dev textual run --dev --port 7654 ./client/ui.py
+```
+
+`print()` statements will be logged on the dev console with this setup.

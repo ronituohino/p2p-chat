@@ -9,3 +9,8 @@ dependencies = [
     "grpcio>=1.67.1",
     "textual>=0.86.1",
 ]
+
+[dependency-groups]
+dev = [
+    "textual-dev>=1.6.1",
+]

@@ -1,111 +1,94 @@
-# From https://textual.textualize.io/tutorial/
+from textual.app import App, ComposeResult, RenderResult
+from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.widgets import Footer, Static, Input, Tree
+from textual.widget import Widget
 
-from time import monotonic
-
-from textual.app import App, ComposeResult
-from textual.containers import ScrollableContainer
 from textual.reactive import reactive
-from textual.widgets import Button, Footer, Header, Static
 
 
-class TimeDisplay(Static):
-	"""A widget to display elapsed time."""
-
-	start_time = reactive(monotonic)
-	time = reactive(0.0)
-	total = reactive(0.0)
-
-	def on_mount(self) -> None:
-		"""Event handler called when widget is added to the app."""
-		self.update_timer = self.set_interval(1 / 60, self.update_time, pause=True)
-
-	def update_time(self) -> None:
-		"""Method to update time to current."""
-		self.time = self.total + (monotonic() - self.start_time)
-
-	def watch_time(self, time: float) -> None:
-		"""Called when the time attribute changes."""
-		minutes, seconds = divmod(time, 60)
-		hours, minutes = divmod(minutes, 60)
-		self.update(f"{hours:02,.0f}:{minutes:02.0f}:{seconds:05.2f}")
-
-	def start(self) -> None:
-		"""Method to start (or resume) time updating."""
-		self.start_time = monotonic()
-		self.update_timer.resume()
-
-	def stop(self):
-		"""Method to stop the time display updating."""
-		self.update_timer.pause()
-		self.total += monotonic() - self.start_time
-		self.time = self.total
-
-	def reset(self):
-		"""Method to reset the time display to zero."""
-		self.total = 0
-		self.time = 0
-
-
-class Stopwatch(Static):
-	"""A stopwatch widget."""
-
-	def on_button_pressed(self, event: Button.Pressed) -> None:
-		"""Event handler called when a button is pressed."""
-		button_id = event.button.id
-		time_display = self.query_one(TimeDisplay)
-		if button_id == "start":
-			time_display.start()
-			self.add_class("started")
-		elif button_id == "stop":
-			time_display.stop()
-			self.remove_class("started")
-		elif button_id == "reset":
-			time_display.reset()
+class Discovery(Static):
+	BORDER_TITLE = "Discovery"
 
 	def compose(self) -> ComposeResult:
-		"""Create child widgets of a stopwatch."""
-		yield Button("Start", id="start", variant="success")
-		yield Button("Stop", id="stop", variant="error")
-		yield Button("Reset", id="reset")
-		yield TimeDisplay()
+		with VerticalScroll():
+			yield Static("Horizontally")
+			yield Static("Horizontally")
+			yield Static("Positioned")
+			yield Static("Children")
+			yield Static("Horizontally")
+			yield Static("Positioned")
+			yield Static("Children")
+			yield Static("Horizontally")
+			yield Static("Positioned")
+			yield Static("Children")
+			yield Static("Horizontally")
+			yield Static("Positioned")
+			yield Static("Children")
 
 
-class StopwatchApp(App):
-	"""A Textual app to manage stopwatches."""
-
-	CSS_PATH = "stopwatch.tcss"
-
-	BINDINGS = [
-		("d", "toggle_dark", "Toggle dark mode"),
-		("a", "add_stopwatch", "Add"),
-		("r", "remove_stopwatch", "Remove"),
-	]
+class Groups(Static):
+	BORDER_TITLE = "Groups"
 
 	def compose(self) -> ComposeResult:
-		"""Called to add widgets to the app."""
-		yield Header()
+		with VerticalScroll():
+			tree: Tree[str] = Tree("Dune")
+			tree.root.expand()
+			characters = tree.root.add("Characters")
+			characters.add_leaf("Paul")
+			characters.add_leaf("Jessica")
+			characters.add_leaf("Chani")
+			yield tree
+
+
+class Message(Widget):
+	message = reactive("")
+	sender = reactive("")
+
+	def render(self) -> RenderResult:
+		return f"@{self.sender}: {self.message}"
+
+
+class Chat(Widget):
+	BORDER_TITLE = "Chat"
+
+	# recompose=True rerenders entire component when chat_log changes
+	chat_log = reactive([], recompose=True)
+
+	def on_input_submitted(self, event: Input.Submitted):
+		print("hii!!")
+		new_chat_log = self.chat_log
+		new_chat_log.append(event.value)
+
+	def compose(self) -> ComposeResult:
+		with VerticalScroll():
+			for c in self.chat_log:
+				yield Message(message=c, sender="Roni")
+			yield Input(classes="message-input")
+
+
+class ChatApp(App):
+	"""The main ui class"""
+
+	CSS_PATH = "chatapp.tcss"
+	BINDINGS = [("a", "add_discovery", "Add Discovery source")]
+
+	def compose(self) -> ComposeResult:
+		with Horizontal(classes="column"):
+			with Vertical(id="left", classes="column"):
+				yield Discovery()
+				yield Groups()
+			yield Chat()
 		yield Footer()
-		yield ScrollableContainer(Stopwatch(), Stopwatch(), Stopwatch(), id="timers")
 
-	def action_add_stopwatch(self) -> None:
-		"""An action to add a timer."""
-		new_stopwatch = Stopwatch()
-		self.query_one("#timers").mount(new_stopwatch)
-		new_stopwatch.scroll_visible()
-
-	def action_remove_stopwatch(self) -> None:
-		"""Called to remove a timer."""
-		timers = self.query("Stopwatch")
-		if timers:
-			timers.last().remove()
-
-	def action_toggle_dark(self) -> None:
-		"""An action to toggle dark mode."""
-		self.theme = (
-			"textual-dark" if self.theme == "textual-light" else "textual-light"
-		)
+	def action_add_discovery(self) -> None:
+		"""An action to add a new Discovery source"""
+		print("Implement")
 
 
 def run():
-	app = StopwatchApp()
+	app = ChatApp()
 	app.run()
+
+
+if __name__ == "__main__":
+	run()

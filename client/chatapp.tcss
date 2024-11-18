@@ -1,0 +1,30 @@
+#left {
+    width: 30%;
+}
+
+$border: round darkblue;
+
+Discovery, Groups, Chat {
+    border: $border;
+}
+
+Discovery {
+    background: crimson;
+    max-height: 30%;
+}
+
+Groups {
+    background: yellow;
+    max-height: 70%;
+}
+
+
+Chat {
+    background: blue;
+    max-width: 70%;
+}
+
+.message-input {
+    dock: bottom;
+    background: red;
+}
