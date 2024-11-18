@@ -54,7 +54,7 @@ Textual logs can also be enabled by leaving out the "-x (CLASS)" clauses. More i
 After launching the dev console, start the ui itself in a separate terminal
 
 ```
-uvx --from textual-dev textual run --dev --port 7654 ./client/ui.py
+uvx --from textual-dev textual run --dev --port 7654 ./client/modules/ui/ui.py
 ```
 
 `print()` statements will be logged on the dev console with this setup.
