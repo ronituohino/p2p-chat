@@ -3,16 +3,21 @@ from textual.containers import VerticalScroll
 from textual.widgets import Static, Tree
 
 
-class Groups(Static):
-	BORDER_TITLE = "Groups"
+class Networks(Static):
+	BORDER_TITLE = "Networks"
 
 	DEFAULT_CSS = """
-	Groups {
-    border: $border;
-    background: yellow;
-    max-height: 70%;
+	Networks {
+		border: $border;
+		background: crimson;
 	}
 	"""
+
+	def add_nds_to_list(self, name, groups):
+		pass
+
+	def on_mount(self):
+		self.add_nds_to_list("Test", ["group1", "group2", "group3"])
 
 	def compose(self) -> ComposeResult:
 		with VerticalScroll():

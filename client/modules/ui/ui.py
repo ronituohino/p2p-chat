@@ -1,18 +1,17 @@
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.widgets import Footer
 
-from components.Chat.main import Chat
-from components.Discovery.main import Discovery
-from components.Discovery.add_discovery_source import AddDiscoverySource
-from components.Groups.main import Groups
+from modules.ui.Chat.main import Chat
+from modules.ui.Networks.main import Networks
+from modules.ui.Networks.add_discovery_source import AddDiscoverySource
 
 
 class ChatApp(App):
 	"""The main ui class"""
 
 	DEFAULT_CSS = """
-	#left {
+	Networks {
     width: 30%;
 	}
 
@@ -23,9 +22,7 @@ class ChatApp(App):
 
 	def compose(self) -> ComposeResult:
 		with Horizontal():
-			with Vertical(id="left"):
-				yield Discovery()
-				yield Groups()
+			yield Networks()
 			yield Chat()
 		yield Footer()
 
@@ -37,6 +34,7 @@ class ChatApp(App):
 def run():
 	app = ChatApp()
 	app.run()
+	return app
 
 
 if __name__ == "__main__":
