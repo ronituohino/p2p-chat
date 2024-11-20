@@ -24,7 +24,7 @@ class AddDiscoverySource(Screen):
 			background: $surface;
 	}
 
-	#input {
+	Input {
 			column-span: 2;
 			height: 1fr;
 			width: 1fr;
@@ -34,13 +34,15 @@ class AddDiscoverySource(Screen):
 
 	def compose(self) -> ComposeResult:
 		yield Grid(
-			Input(id="input"),
+			Input(),
 			Button("Cancel", variant="error"),
 			Button("Add", variant="primary", id="add"),
 			id="dialog",
 		)
 
-	def on_button_pressed(self, event: Button.Pressed) -> None:
+	async def on_button_pressed(self, event: Button.Pressed) -> None:
 		if event.button.id == "add":
-			self.app.net.add_discovery_source(self.query_one("#input").value)
+			nds_ip = self.query_one("Input").value
+			groups = await self.app.net.add_discovery_source(nds_ip)
+			self.app.networks.add_groups(nds_ip, groups)
 		self.app.pop_screen()

@@ -7,6 +7,17 @@ from modules.ui.Networks.main import Networks
 from modules.ui.Networks.add_discovery_source import AddDiscoverySource
 
 
+# Structs for objects
+class Group:
+	def __init__(self, name) -> None:
+		self.name = name
+
+
+class Node:
+	def __init__(self, name) -> None:
+		self.name = name
+
+
 class ChatApp(App):
 	"""The main ui class"""
 
@@ -22,10 +33,16 @@ class ChatApp(App):
 
 	def __init__(self, net) -> None:
 		self.net = net
+		self.chat = None
+		self.networks = None
 		super().__init__()
 
 	def on_mount(self):
-		self.net.register_ui(self, self.query_one("Chat"))
+		chat = self.query_one("Chat")
+		self.chat = chat
+		networks = self.query_one("Networks")
+		self.networks = networks
+		self.net.register_ui(self)
 
 	def compose(self) -> ComposeResult:
 		with Horizontal():

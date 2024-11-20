@@ -13,18 +13,14 @@ class Networks(Static):
 	}
 	"""
 
-	def add_nds_to_list(self, name, groups):
-		pass
-
-	def on_mount(self):
-		self.add_nds_to_list("Test", ["group1", "group2", "group3"])
+	def add_groups(self, nds_ip, groups):
+		tree = self.query_one("Tree")
+		nds = tree.root.add(nds_ip)
+		for g in groups:
+			nds.add(g.name)
 
 	def compose(self) -> ComposeResult:
 		with VerticalScroll():
-			tree: Tree[str] = Tree("Dune")
-			tree.root.expand()
-			characters = tree.root.add("Characters")
-			characters.add_leaf("Paul")
-			characters.add_leaf("Jessica")
-			characters.add_leaf("Chani")
+			tree = Tree("root")
+			tree.show_root = False
 			yield tree
