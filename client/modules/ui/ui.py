@@ -20,6 +20,13 @@ class ChatApp(App):
 
 	BINDINGS = [("a", "add_discovery", "Add Discovery source")]
 
+	def __init__(self, net) -> None:
+		self.net = net
+		super().__init__()
+
+	def on_mount(self):
+		self.net.register_ui(self, self.query_one("Chat"))
+
 	def compose(self) -> ComposeResult:
 		with Horizontal():
 			yield Networks()
@@ -29,13 +36,3 @@ class ChatApp(App):
 	def action_add_discovery(self) -> None:
 		"""An action to add a new Discovery source"""
 		self.push_screen(AddDiscoverySource())
-
-
-def run():
-	app = ChatApp()
-	app.run()
-	return app
-
-
-if __name__ == "__main__":
-	run()

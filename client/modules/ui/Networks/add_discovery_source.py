@@ -4,10 +4,6 @@ from textual.screen import Screen
 from textual.widgets import Input, Button
 
 
-def add_discovery_source(ip):
-	print(ip)
-
-
 class AddDiscoverySource(Screen):
 	"""Screen with a dialog to add a new Discovery source"""
 
@@ -46,5 +42,5 @@ class AddDiscoverySource(Screen):
 
 	def on_button_pressed(self, event: Button.Pressed) -> None:
 		if event.button.id == "add":
-			add_discovery_source(self.query_one("#input").value)
+			self.app.net.add_discovery_source(self.query_one("#input").value)
 		self.app.pop_screen()
