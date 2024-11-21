@@ -13,20 +13,29 @@ def start_server():
 def mock_environment(tmp_path):
     groups_path = tmp_path / "test_groups.db"
     messages_path = tmp_path / "test_messages.db"
-
+    nds_server_mock = {}
+    
     with shelve.open(str(groups_path), writeback=True) as groups, \
          shelve.open(str(messages_path), writeback=True) as message_store, \
          patch("service.server.groups", groups), \
          patch("service.server.message_store", message_store), \
          patch("service.server.nds_server", {
              "127.0.0.1": MagicMock(get_proxy=MagicMock(
-                 return_value=MagicMock(create_group=MagicMock(return_value=MagicMock(success=True, group_id="group_1")))
+                 return_value=MagicMock(
+                    create_group=MagicMock(
+                        return_value=MagicMock(
+                            success=True, 
+                            group_id="group_1"
+                            )
+                        )
+                    )
              ))
-         }), \
+         }) as nds_server_mock, \
          patch("service.server.send_message_to_peer", MagicMock()) as send_message_to_peer:
         yield {
             "groups": groups,
             "message_store": message_store,
+            "nds_server": nds_server_mock,
             "send_message_to_peer": send_message_to_peer
         }
 
@@ -39,6 +48,59 @@ def test_create_group_success(mock_environment):
     assert groups[group_id]["group_name"] == "Test Group"
     assert groups[group_id]["self_id"] == 0
     assert groups[group_id]["leader_id"] == 0
+
+
+def test_create_group_already_exists(mock_environment):
+    groups = mock_environment['groups']
+    groups["group_1"] = {
+        "group_name": "Test Group",
+        "self_id": 0,
+        "leader_id": 0,
+        "peers": {
+            0: {"name": "bob", "ip": "127.0.0.1"}
+        },
+    }
+
+    mock_environment["nds_server"]["127.0.0.1"].get_proxy.return_value.create_group.return_value = MagicMock(
+        success=True, group_id="group_1"
+    )
+
+    create_group("Test Group", "127.0.0.1")
+    assert groups["group_1"]["group_name"] == "Test Group"  # Ensures data is intact
+
+
+def test_create_group_leader_assignment(mock_environment):
+    mock_environment["nds_server"]["127.0.0.1"].get_proxy.return_value.create_group.return_value = MagicMock(
+        success=True, group_id="group_1"
+    )
+
+    create_group("Test Group", "127.0.0.1")
+
+    groups = mock_environment['groups']
+    assert groups["group_1"]["leader_id"] == 0
+    assert groups["group_1"]["self_id"] == 0
+
+
+def test_create_group_empty_name(mock_environment):
+    with pytest.raises(ValueError, match="Group name cannot be empty"):
+        create_group("", "127.0.0.1")
+
+
+def test_create_multiple_groups(mock_environment):
+    mock_environment["nds_server"]["127.0.0.1"].get_proxy.return_value.create_group.side_effect = [
+        MagicMock(success=True, group_id="group_1"),
+        MagicMock(success=True, group_id="group_2"),
+    ]
+
+    create_group("Test Group 1", "127.0.0.1")
+    create_group("Test Group 2", "127.0.0.1")
+
+    groups = mock_environment['groups']
+    assert "group_1" in groups
+    assert "group_2" in groups
+    assert groups["group_1"]["group_name"] == "Test Group 1"
+    assert groups["group_2"]["group_name"] == "Test Group 2"
+
 
 
 def test_join_group_success(mock_environment):

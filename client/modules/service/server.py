@@ -146,6 +146,9 @@ def create_group(group_name, nds_id):
     if not rpc_client:
         raise ValueError(f"NDS server with ID {nds_id} does not exist.")
 
+    if not group_name:
+        raise ValueError(f"Group name cannot be empty")
+
     remote_server = rpc_client.get_proxy()
     response = remote_server.create_group(
         leader_ip=self_ip, group_name=group_name

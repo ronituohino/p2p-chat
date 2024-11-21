@@ -1,3 +1,4 @@
 __pycache__
 textual.log
 .pytest_cache
+*.db
