@@ -5,6 +5,7 @@ from textual.widgets import Footer
 from modules.ui.Chat.main import Chat
 from modules.ui.Networks.main import Networks
 from modules.ui.Networks.add_discovery_source import AddDiscoverySource
+from modules.ui.Networks.create_group import CreateGroup
 
 
 # Structs for objects
@@ -29,7 +30,10 @@ class ChatApp(App):
 	$border: round darkblue;
 	"""
 
-	BINDINGS = [("a", "add_discovery", "Add Discovery source")]
+	BINDINGS = [
+		("a", "add_discovery", "Add Discovery source"),
+		("c", "create_group", "Create Group"),
+	]
 
 	def __init__(self, net) -> None:
 		self.net = net
@@ -53,3 +57,7 @@ class ChatApp(App):
 	def action_add_discovery(self) -> None:
 		"""An action to add a new Discovery source"""
 		self.push_screen(AddDiscoverySource())
+
+	def action_create_group(self) -> None:
+		"""An action to create a new group"""
+		self.push_screen(CreateGroup())
