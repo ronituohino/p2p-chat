@@ -33,6 +33,11 @@ class Networks(Static):
 		except StopIteration:
 			print("Could not create group --- NDS not found!")
 
+	def get_networks(self):
+		"""Returns a list of all NDS'"""
+		tree = self.query_one("Tree")
+		return [nds.label.plain for nds in tree.root.children]
+
 	def compose(self) -> ComposeResult:
 		with VerticalScroll():
 			tree = Tree("root")
