@@ -51,7 +51,7 @@ class CreateGroup(ModalScreen):
 			nds_ip = self.query_one("#nds_ip_input").value
 			name = self.query_one("#name_input").value
 
-			# prints to dev console for debugging
-			print(nds_ip, name)
+			created_group = await self.app.net.create_group(name, nds_ip)
+			self.app.networks.create_group(nds_ip, created_group)
 
 		self.app.pop_screen()

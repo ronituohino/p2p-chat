@@ -19,6 +19,20 @@ class Networks(Static):
 		for g in groups:
 			nds.add(g.name)
 
+	def create_group(self, nds_ip, group):
+		"""Takes a new group and adds it under the given NDS, only if the NDS exists"""
+		tree = self.query_one("Tree")
+		print("Every available NDS: ", [s.label for s in tree.root.children])
+
+		# Currently assumes that NDS label is it's IP address
+		# This could be changed so that label is any string, and the ip
+		# is passed as TreeNode datatype, see: https://textual.textualize.io/widgets/tree/#textual.widgets.tree.TreeNode(data)
+		try:
+			nds = next(nds for nds in tree.root.children if nds.label.plain == nds_ip)
+			nds.add(group.name)
+		except StopIteration:
+			print("Could not create group --- NDS not found!")
+
 	def compose(self) -> ComposeResult:
 		with VerticalScroll():
 			tree = Tree("root")

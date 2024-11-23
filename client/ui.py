@@ -25,7 +25,6 @@ class StubNetworking:
 		return [Group("best server"), Group("PropagandaChat")]
 
 	# Called when contacting nds to create a new group
-	## TODO: UI SUPPORT
 	async def create_group(self, name, nds_ip) -> Group:
 		print("connecting to: " + nds_ip + " -to create group: " + name)
 		await asyncio.sleep(1)
