@@ -47,7 +47,15 @@ Install dependencies for client:
 cd client
 uv sync
 ```
-
+## tests
+to run tests 
+```
+uv pip install pytest
+```
+then run in directory of the service.
+```
+pytest
+```
 ### Client ui development
 
 For effective ui development, launch textual development console:
