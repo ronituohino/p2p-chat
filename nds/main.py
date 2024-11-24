@@ -1,7 +1,5 @@
-import shelve
 import socket
 import uuid
-import dbm
 import gevent
 import gevent.pywsgi
 import gevent.queue
@@ -9,6 +7,7 @@ from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.wsgi import WsgiServerTransport
 from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
+from sqlitedict import SqliteDict
 
 
 dispatcher = RPCDispatcher()
@@ -34,20 +33,18 @@ class Response:
 
 @dispatcher.public
 def reset_database():
-    """Reset the groups database."""
-    groups.clear()
-    groups.sync()
-    return {"success": True, "message": "Database reset successfully"}
+	"""Reset the groups database."""
+	groups.clear()
+	groups.sync()
+	return {"success": True, "message": "Database reset successfully"}
 
 
 def serve(port, db_path="groups.db", reset_db=False):
 	global groups
 	if groups is None: 
-		groups = shelve.open(db_path, writeback=True)
+		groups = SqliteDict(db_path, autocommit=True)
 	if reset_db:
 		groups.clear()  
-		groups.sync()
-	print(f"Server groups: {list(groups.keys())}")
 
 	transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
 	wsgi_server = gevent.pywsgi.WSGIServer(('127.0.0.1', port), transport.handle)
@@ -65,14 +62,13 @@ def create_group(leader_ip, group_name):
 		"group_id": group_id,
 		"group_name": group_name
 	}
-	groups.sync()
 	return Response(success=True, message="Chat creation successful", data={"group_id": group_id}).to_dict()
 
 
 @dispatcher.public
 def get_groups():
 	"""Get all possible chats to join."""
-	group_list = [group for group in groups.values()]
+	group_list = list(groups.values())
 	return Response(success=True, message="Groups fetched successfully", data={"groups": group_list}).to_dict()
 
 
@@ -82,11 +78,13 @@ def update_group_leader(group_id, new_leader_ip):
 	if group_id not in groups:
 		return Response(success=False, message=f"Group {group_id} not found.").to_dict()
 	
-	current_leader = groups[group_id]["leader_ip"]
+	group = groups[group_id]
+	current_leader = group["leader_ip"]
 	if current_leader and liveness(current_leader, port):
 		return Response(success=False, message="Leader is still alive, cannot update.").to_dict()
 	
-	groups[group_id]["leader_ip"] = new_leader_ip
+	group["leader_ip"] = new_leader_ip
+	groups[group_id] = group
 	return Response(success=True, message="Leader update successful").to_dict()
 
 
@@ -95,8 +93,8 @@ def get_group_leader(group_id):
 	"""Gets the current leader of a group."""
 	if group_id not in groups:
 		return Response(success=False, message=f"Group {group_id} not found.").to_dict()
-	
-	current_leader = groups[group_id]["leader_ip"]
+	group = groups[group_id]
+	current_leader = group["leader_ip"]
 	return Response(success=True, message="Group leader fetched successfully", data={"leader_ip": current_leader}).to_dict()
 
 

@@ -1,12 +1,10 @@
 import pytest
 import socket
-from unittest.mock import patch
 from multiprocessing import Process
 from tinyrpc import RPCClient
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.http import HttpPostClientTransport
-from main import serve, liveness
-from unittest.mock import MagicMock, patch
+from main import serve
 import time
 
 @pytest.fixture(scope="module", autouse=True)
