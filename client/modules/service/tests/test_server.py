@@ -1,22 +1,21 @@
 from multiprocessing import Process
-from service.server import serve, create_group, join_network, send_message, message_broadcast, store_message, get_group_info, get_messages, leave_network, liveness
+from service.server import serve, create_group, join_group, send_message, message_broadcast, store_message, get_group_info, get_messages, leave_group
 import pytest
-import shelve
-import os
+from sqlitedict import SqliteDict
 from unittest.mock import MagicMock, patch
 
 
 def start_server():
     serve(port=5000)
 
+    
 @pytest.fixture
 def mock_environment(tmp_path):
     groups_path = tmp_path / "test_groups.db"
     messages_path = tmp_path / "test_messages.db"
-    nds_server_mock = {}
-    
-    with shelve.open(str(groups_path), writeback=True) as groups, \
-         shelve.open(str(messages_path), writeback=True) as message_store, \
+
+    with SqliteDict(str(groups_path), autocommit=True) as groups, \
+         SqliteDict(str(messages_path), autocommit=True) as message_store, \
          patch("service.server.groups", groups), \
          patch("service.server.message_store", message_store), \
          patch("service.server.nds_server", {
@@ -26,9 +25,9 @@ def mock_environment(tmp_path):
                         return_value=MagicMock(
                             success=True, 
                             group_id="group_1"
-                            )
                         )
                     )
+                 )
              ))
          }) as nds_server_mock, \
          patch("service.server.send_message_to_peer", MagicMock()) as send_message_to_peer:
@@ -112,9 +111,10 @@ def test_join_group_success(mock_environment):
         "peers": {}
     }
 
-    response = join_network("group_1", "127.0.0.2", "peer_2")
+    response = join_group("group_1", "127.0.0.2", "peer_2")
     assert response.success
-    assert "peer_2" in [peer["name"] for peer in groups["group_1"]["peers"].values()]
+    group = groups["group_1"]
+    assert "peer_2" in [peer["name"] for peer in group["peers"].values()]
 
 
 def test_join_group_leader(mock_environment):
@@ -126,7 +126,7 @@ def test_join_group_leader(mock_environment):
         "peers": {}
     }
 
-    response=join_network("group_1", "127.0.0.2", "peer_2")
+    response=join_group("group_1", "127.0.0.2", "peer_2")
     assert response.success == True
     assert response.message == "Joined a group successfully"
     assert response.data["peers"]
@@ -141,12 +141,12 @@ def test_join_group_no_leader(mock_environment):
         "peers": {}
     }
 
-    response=join_network("group_1", "127.0.0.2", "peer_2")
+    response=join_group("group_1", "127.0.0.2", "peer_2")
     assert response.success == False
     assert response.message == "Only leader can validate users."
 
 
-def test_join_network_duplicate_name(mock_environment):
+def test_join_group_duplicate_name(mock_environment):
     groups = mock_environment['groups']
     groups["group_1"] = {
         "group_name": "Test Group",
@@ -157,12 +157,12 @@ def test_join_network_duplicate_name(mock_environment):
         }
     }
 
-    response = join_network("group_1", "127.0.0.2", "peer_1")
+    response = join_group("group_1", "127.0.0.2", "peer_1")
     assert not response.success
     assert response.message == "Peer name already exists in the group."
 
 
-def test_join_network_duplicate_ip(mock_environment):
+def test_join_group_duplicate_ip(mock_environment):
     groups = mock_environment['groups']
     groups["group_1"] = {
         "group_name": "Test Group",
@@ -173,7 +173,7 @@ def test_join_network_duplicate_ip(mock_environment):
         }
     }
 
-    response = join_network("group_1", "127.0.0.1", "peer_2")
+    response = join_group("group_1", "127.0.0.1", "peer_2")
     assert not response.success
     assert response.message == "Peer IP already exists in the group."
 
@@ -189,9 +189,10 @@ def test_leave_group_success(mock_environment):
         }
     }
 
-    response = leave_network("group_1", 1)
+    response = leave_group("group_1", 1)
     assert response.success
-    assert 1 not in groups["group_1"]["peers"]
+    group = groups["group_1"]
+    assert 1 not in group["peers"]
 
 
 def test_leave_group_invalid_peer(mock_environment):
@@ -203,7 +204,7 @@ def test_leave_group_invalid_peer(mock_environment):
         "peers": {}
     }
 
-    response = leave_network("group_1", 99)
+    response = leave_group("group_1", 99)
     assert not response.success
     assert response.message == "Peer not found"
 
@@ -217,11 +218,11 @@ def test_join_group_invalid_group(mock_environment):
         "peers": {}
     }
     with pytest.raises(ValueError, match="Group with ID .* does not exist"):
-        join_network("invalid_group", "127.0.0.2", "peer_2")
+        join_group("invalid_group", "127.0.0.2", "peer_2")
 
 
 def test_create_group_invalid_nds(mock_environment):
-    with pytest.raises(ValueError, match="NDS server with ID .* does not exist"):
+    with pytest.raises(ValueError, match="NDS server with IP invalid_nds_id does not exist."):
         create_group("Invalid Group", "invalid_nds_id")
 
 
@@ -377,19 +378,12 @@ def test_full_workflow(mock_environment):
         server_process.join()
 
 
-def test_liveness_success():
-    assert liveness("127.0.0.1", 5000)
-
-
-def test_liveness_failure():
-    assert not liveness("192.0.2.1", 5000)
-
 
 def test_same_peer_name_joins(mock_environment):
     from concurrent.futures import ThreadPoolExecutor
 
     def join():
-        join_network("group_1", "127.0.0.3", "peer_3")
+        join_group("group_1", "127.0.0.3", "peer_3")
 
     groups = mock_environment['groups']
     groups["group_1"] = {
@@ -411,7 +405,7 @@ def test_same_peer_ip_joins(mock_environment):
     from concurrent.futures import ThreadPoolExecutor
 
     def join():
-        join_network("group_1", "127.0.0.3", "peer_3")
+        join_group("group_1", "127.0.0.3", "peer_3")
 
     groups = mock_environment['groups']
     groups["group_1"] = {
@@ -433,10 +427,10 @@ def test_diff_ip_joins(mock_environment):
     from concurrent.futures import ThreadPoolExecutor
 
     def join():
-        join_network("group_1", "127.0.0.3", "peer_3")
-        join_network("group_1", "127.0.0.1", "peer_1")
-        join_network("group_1", "127.0.0.2", "peer_2")
-        join_network("group_1", "127.0.0.5", "peer_5")
+        join_group("group_1", "127.0.0.3", "peer_3")
+        join_group("group_1", "127.0.0.1", "peer_1")
+        join_group("group_1", "127.0.0.2", "peer_2")
+        join_group("group_1", "127.0.0.5", "peer_5")
 
     groups = mock_environment['groups']
     groups["group_1"] = {

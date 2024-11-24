@@ -1,8 +1,4 @@
-import shelve
-import random
-from concurrent import futures
 import socket
-from typing import List
 import uuid
 import logging
 
@@ -13,9 +9,9 @@ from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.wsgi import WsgiServerTransport
 from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
-from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.http import HttpPostClientTransport
 from tinyrpc import RPCClient
+from sqlitedict import SqliteDict
 
 class Response:
     def __init__(self, success: bool, message: str, data=None):
@@ -35,14 +31,13 @@ class Response:
 
 
 dispatcher = RPCDispatcher()
-
 self_ip = "127.0.0.1"
 self_name = "bob"
-nds_server = shelve.open("discovery_server.db", writeback=True) 
+nds_server = SqliteDict("discovery_server.db", autocommit=True)  
+groups = SqliteDict("groups.db", autocommit=True) 
+message_store = SqliteDict("messages.db", autocommit=True)
 channel_port = 50001
-groups = shelve.open("groups.db", writeback=True) 
 clients = []
-message_store = shelve.open("messages.db", writeback=True)
 received_messages = set()
 
 #group_id: { 
@@ -75,12 +70,14 @@ def store_message(msg, msg_id, group_id, source_id):
         """Store a message locally."""
         if group_id not in message_store:
             message_store[group_id] = []
-        message_store[group_id].append({
+        messages = message_store[group_id]
+        messages.append({
             "msg_id": msg_id,
             "source_id": source_id,
             "msg": msg
         })
-        message_store.sync() 
+        message_store[group_id] = messages
+
     
 
 def get_messages(group_id):
@@ -124,7 +121,6 @@ def add_node_discovery_source(nds_ip) -> bool:
     """
     rpc_client = create_rpc_client(nds_ip)
     nds_server[nds_ip]=rpc_client
-    nds_server.sync() 
     return True
 
 
@@ -139,7 +135,7 @@ def request_to_join_group(leader_ip, group_id):
         list: A set of nodes if success.
     """
     rpc_client = create_rpc_client(leader_ip)
-    response = rpc_client.join_network(group_id, self_ip, self_name)
+    response = rpc_client.join_group(group_id, self_ip, self_name)
     if response.success:
         groups[group_id] = {
             "group_name": response.group_name,
@@ -148,11 +144,10 @@ def request_to_join_group(leader_ip, group_id):
             "peers": response.peers
         }
 
-        groups.sync() 
-        logging.info(f"Joined network with Peer ID: {response.assigned_peer_id}")
+        logging.info(f"Joined group with Peer ID: {response.assigned_peer_id}")
         return groups[group_id]
     else:
-        logging.error("Failed to join network")
+        logging.error("Failed to join group")
 
 
 def request_to_leave_group(leader_ip, group_id):
@@ -166,14 +161,14 @@ def request_to_leave_group(leader_ip, group_id):
         bool: True, if success
     """
     rpc_client = create_rpc_client(leader_ip)
-    response = rpc_client.leave_network(group_id, self_ip, self_name)
+    response = rpc_client.leave_group(group_id, self_ip, self_name)
     if response.success:
         groups[group_id] = None
-        groups.sync() 
         logging.info(f"{response.message} {group_id}")
         return True
     else:
-        logging.errror("Failed to join network")
+        logging.errror("Failed to join group")
+
 
 def is_group_leader(leader_id, self_id):
     """ A simple way to check if current node is leader or not.
@@ -188,7 +183,7 @@ def is_group_leader(leader_id, self_id):
 
 
 def create_group(group_name, nds_ip):
-    """Create a new network and register it with NDS,
+    """Create a new group and register it with NDS,
       making this peer the leader.
 
     Raises:
@@ -220,15 +215,14 @@ def create_group(group_name, nds_ip):
                 0: { "name": self_name, "ip": self_ip}
             },
         }
-        groups.sync() 
-        logging.info(f"Created network {group_name} with ID: {group_id}")
+        logging.info(f"Created group {group_name} with ID: {group_id}")
     else: 
         return -1
 
 
 @dispatcher.public
-def join_network(group_id, peer_ip, peer_name):
-    """An server implementation that allows user to join a network. 
+def join_group(group_id, peer_ip, peer_name):
+    """An server implementation that allows user to join a group. 
     This is called when client accesses the group leader.
 
     Args:
@@ -250,16 +244,22 @@ def join_network(group_id, peer_ip, peer_name):
         if peer["ip"] == peer_ip:
             return Response(success=False, message="Peer IP already exists in the group.")
 
-    assigned_peer_id = max(groups[group_id]["peers"].keys(), default=0) + 1
+    assigned_peer_id = max(peers.keys(), default=0) + 1
     peers[assigned_peer_id] = {"name": peer_name, "ip": peer_ip} 
+    groups[group_id] = {
+        "group_name": group_name, 
+        "self_id": self_id,
+        "peers": peers, 
+        "leader_id": leader_id
+        }
+    
     logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 
-    groups.sync() 
     return Response(success=True, message="Joined a group successfully", data={"group_name": group_name, "peers": peers, "assigned_peer_id": assigned_peer_id, "leader_id": leader_id})
 
 
 @dispatcher.public
-def leave_network(group_id, peer_id):
+def leave_group(group_id, peer_id):
     """ A way for client to send leave request
       to leader node of the group.
 
@@ -271,15 +271,20 @@ def leave_network(group_id, peer_id):
         response: Success or fail response
     """
           
-    _, self_id, leader_id, peers = get_group_info(group_id)
+    group_name, self_id, leader_id, peers = get_group_info(group_id)
     if not is_group_leader(leader_id, self_id):
         return Response(success=False, message="Only leader can delete users.")
 
-    for peer_id, _ in peers.items():
+    for peer_id in peers:
         peers.pop(peer_id)
-        logging.info(f"Peer {peer_id} left the network")
-        groups.sync() 
-        return Response(success=True, message="Successfully left the network")
+        groups[group_id] = {
+            "group_name": group_name,
+            "self_id": self_id,
+            "leader_id": leader_id,
+            "peers": peers
+        }
+        logging.info(f"Peer {peer_id} left the group")
+        return Response(success=True, message="Successfully left the group")
     return Response(success=False, message="Peer not found")
 
 

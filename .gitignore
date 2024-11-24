@@ -2,3 +2,13 @@ __pycache__
 textual.log
 .pytest_cache
 *.db
+*.db
+.venv
+*/messages.db.*
+*/groups.db.*
+*/discovery_server.db
+*/groups.db        
+../client/modules/messages.db.bak
+../client/modules/messages.db.dat
+../client/modules/messages.db.dir
+../client/modules/groups.db.dir

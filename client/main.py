@@ -1,5 +1,5 @@
 from modules.ui.ui import ChatApp, Group, Node
-from client.modules.service.server  import fetch_groups, add_node_discovery_source, create_group, request_to_join_group, request_to_leave_group
+from client.modules.service.server  import fetch_groups, add_node_discovery_source, create_group, request_to_join_group, request_to_leave_group, get_messages
 from typing import List
 
 import asyncio
@@ -28,13 +28,13 @@ class Networking:
 		create_group(group_name=name, nds_ip=nds_ip)  # Creation of a group already requires nds server set, so nds_ip should be known.
 		groups = fetch_groups
 		
-	# Called when contacting leader of network to join
+	# Called when contacting leader of group to join
 	## either ip of leader, or nds_id + group_id
 	## TODO: UI SUPPORT
 	async def join_group(self, ip) -> List[Node]:
 		group = request_to_join_group(leader_ip=ip, group_id=REQUIRED)
 
-	# Called when contacting leader of network to leave
+	# Called when contacting leader of group to leave
 	## TODO: UI SUPPORT
 	async def leave_group(self, ip) -> None:
 		request_to_leave_group(leader_ip=ip, group_id=REQUIRED)
