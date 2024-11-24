@@ -2,6 +2,7 @@ import shelve
 import random
 from concurrent import futures
 import socket
+from typing import List
 import uuid
 import logging
 
@@ -37,11 +38,11 @@ dispatcher = RPCDispatcher()
 
 self_ip = "127.0.0.1"
 self_name = "bob"
-nds_server = shelve.open(f"discovery_server.db", writeback=True) 
+nds_server = shelve.open("discovery_server.db", writeback=True) 
 channel_port = 50001
-groups = shelve.open(f"groups.db", writeback=True) 
+groups = shelve.open("groups.db", writeback=True) 
 clients = []
-message_store = shelve.open(f"messages.db", writeback=True)
+message_store = shelve.open("messages.db", writeback=True)
 received_messages = set()
 
 #group_id: { 
@@ -104,7 +105,7 @@ def get_group_info(group_id):
 
 @dispatcher.public
 def fetch_groups():
-    """Returns possible groups to join"""
+    """Returns all possible groups to join"""
     groups = []
     for client in nds_server:
         remote_server = client.get_proxy()
@@ -112,16 +113,33 @@ def fetch_groups():
     return groups
 
 
-def add_nds(nds_ip):
-    """add nds client"""
+def add_node_discovery_source(nds_ip) -> bool:
+    """Add a discovery server.
+
+    Args:
+        nds_ip (str): IP addr. of the node discovery server
+
+    Returns:
+        bool: True, indicates success
+    """
     rpc_client = create_rpc_client(nds_ip)
     nds_server[nds_ip]=rpc_client
     nds_server.sync() 
+    return True
 
 
-def request_to_join_network(leader_ip, group_id):
+def request_to_join_group(leader_ip, group_id):
+    """_summary_
+
+    Args:
+        leader_ip (str): An IP addr. of the leader ip
+        group_id (str): An ID of the group.
+
+    Returns:
+        list: A set of nodes if success.
+    """
     rpc_client = create_rpc_client(leader_ip)
-    result = remote_server.join_network(group_id, self_ip, self_name)
+    response = rpc_client.join_network(group_id, self_ip, self_name)
     if response.success:
         groups[group_id] = {
             "group_name": response.group_name,
@@ -132,22 +150,60 @@ def request_to_join_network(leader_ip, group_id):
 
         groups.sync() 
         logging.info(f"Joined network with Peer ID: {response.assigned_peer_id}")
+        return groups[group_id]
+    else:
+        logging.error("Failed to join network")
+
+
+def request_to_leave_group(leader_ip, group_id):
+    """A way for client to request leaving the group
+
+    Args:
+        leader_ip (str): An IP addr. of the leader ip
+        group_id (str): An ID of the group.
+
+    Returns:
+        bool: True, if success
+    """
+    rpc_client = create_rpc_client(leader_ip)
+    response = rpc_client.leave_network(group_id, self_ip, self_name)
+    if response.success:
+        groups[group_id] = None
+        groups.sync() 
+        logging.info(f"{response.message} {group_id}")
+        return True
     else:
         logging.errror("Failed to join network")
 
-
 def is_group_leader(leader_id, self_id):
+    """ A simple way to check if current node is leader or not.
+    Args:
+        leader_id (str): ID of the leader
+        self_id (str): ID of the current node
+
+    Returns:
+        bool: True if the current node is the leader.
+    """
     return leader_id == self_id
 
 
-def create_group(group_name, nds_id):
-    """Create a new network and register it with NDS, making this peer the leader."""
-    rpc_client = nds_server.get(nds_id, False)
+def create_group(group_name, nds_ip):
+    """Create a new network and register it with NDS,
+      making this peer the leader.
+
+    Raises:
+        ValueError: Error if NDS Server does not exists.
+        ValueError: Error if the group name has not been set
+
+    Returns:
+        list: updated group list
+    """
+    rpc_client = nds_server.get(nds_ip, False)
     if not rpc_client:
-        raise ValueError(f"NDS server with ID {nds_id} does not exist.")
+        raise ValueError(f"NDS server with IP {nds_ip} does not exist.")
 
     if not group_name:
-        raise ValueError(f"Group name cannot be empty")
+        raise ValueError("Group name cannot be empty")
 
     remote_server = rpc_client.get_proxy()
     response = remote_server.create_group(
@@ -172,6 +228,17 @@ def create_group(group_name, nds_id):
 
 @dispatcher.public
 def join_network(group_id, peer_ip, peer_name):
+    """An server implementation that allows user to join a network. 
+    This is called when client accesses the group leader.
+
+    Args:
+        group_id (str): UID of the group.
+        peer_ip (str): IP addr. of the node sending the request.
+        peer_name (peer_name): name of the peer node.
+
+    Returns:
+        response: If success return data of the group. 
+    """
     group_name, self_id, leader_id, peers = get_group_info(group_id)
     if not is_group_leader(leader_id, self_id):
         return Response(success=False, message="Only leader can validate users.")
@@ -193,21 +260,41 @@ def join_network(group_id, peer_ip, peer_name):
 
 @dispatcher.public
 def leave_network(group_id, peer_id):
-    """Handles leaving the network"""        
-    group_name, self_id, leader_id, peers = get_group_info(group_id)
+    """ A way for client to send leave request
+      to leader node of the group.
+
+    Args:
+        group_id (str): UID of the group.
+        peer_id (str): UID of the peer wishing to leave the group.
+
+    Returns:
+        response: Success or fail response
+    """
+          
+    _, self_id, leader_id, peers = get_group_info(group_id)
     if not is_group_leader(leader_id, self_id):
         return Response(success=False, message="Only leader can delete users.")
 
-    for peer_id, peer_info in peers.items():
+    for peer_id, _ in peers.items():
         peers.pop(peer_id)
         logging.info(f"Peer {peer_id} left the network")
         groups.sync() 
-        return Response(success=True, message=f"Successfully left the network")
+        return Response(success=True, message="Successfully left the network")
     return Response(success=False, message="Peer not found")
 
 
 def send_message(msg, group_id, source_id, destination_id):
-    """Broadcast a message to all peers using flooding."""
+    """A method to send a message forward to peers.
+
+    Args:
+        msg (str): A message that user want to send.
+        group_id (str): UID of the group.
+        source_id (str): Peer ID where the message came from.
+        destination_id (str): UID of the peer that we wish to send to.
+
+    Returns:
+        response: Success / Fail
+    """
     msg_id = str(uuid.uuid4())
     if destination_id == -1:  
         logging.info(f"Broadcasting message {msg_id} from {source_id}: {msg}")
@@ -215,7 +302,7 @@ def send_message(msg, group_id, source_id, destination_id):
         return Response(success=True, message="Message broadcasted")
     else:
         try:
-            group_name, self_id, leader_id, peers = get_group_info(group_id)
+            _, _, _, peers = get_group_info(group_id)
             ip = peers.get(destination_id, "")
             if ip:
                 destination_client = create_rpc_client(ip)
@@ -231,8 +318,15 @@ def send_message(msg, group_id, source_id, destination_id):
 
 
 def message_broadcast(msg, msg_id, group_id, source_id):
-    """broadcast a message to all peers."""
-    group_name, self_id, leader_id, peers = get_group_info(group_id)
+    """A message broadcasts if destination ID has not been sent.
+
+    Args:
+        msg (str): A message that user want to send.
+        group_id (str): UID of the group.
+        source_id (str): Peer ID where the message came from.
+        destination_id (str): UID of the peer that we wish to send to.
+    """
+    _, self_id, _, peers = get_group_info(group_id)
     if not peers:
         logging.info(f"No peers found for group {group_id}.")
         return 
@@ -247,7 +341,16 @@ def message_broadcast(msg, msg_id, group_id, source_id):
 
 
 def send_message_to_peer(client, msg, msg_id, group_id, source_id, destination_id=-1):
-    """sends a message to a given peer""" 
+    """Send a message to individual targeted peer.
+
+    Args:
+        client (object): The rpc_client to the peer.
+        msg (str): the message.
+        msg_id (str): ID of the message.
+        group_id (str): UID of the group.
+        source_id (str): ID of the source peer.
+        destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
+    """
     remote_server = client.get_proxy()
     response = remote_server.receive_message(msg, msg_id, group_id, source_id, destination_id)
     if response.success:
@@ -258,7 +361,21 @@ def send_message_to_peer(client, msg, msg_id, group_id, source_id, destination_i
 
 @dispatcher.public
 def receive_message(msg, msg_id, group_id, source_id, destination_id):
-    """Handle receiving a broadcasted message."""
+    """ Handle receiving a message from peer.
+    If message is meant for current node, then it will store it, otherwise it will
+    broadcast it forward.
+
+    Args:
+        msg (str): the message.
+        msg_id (str): ID of the message.
+        group_id (str): UID of the group.
+        source_id (str): ID of the source peer.
+        destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
+
+    Returns:
+        response: success / fail
+    """
+    _ , self_id, _ , _ = get_group_info(group_id)
     if msg_id in received_messages:
         return Response(success=True, message="Duplicate message")
 
