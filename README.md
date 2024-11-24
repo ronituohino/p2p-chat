@@ -47,12 +47,12 @@ Install dependencies for client:
 cd client
 uv sync
 ```
-## tests
-to run tests 
+## Tests
+install pytest 
 ```
 uv pip install pytest
 ```
-then run in directory of the service.
+run in directory of the service.
 ```
 pytest
 ```
