@@ -17,7 +17,6 @@ addresses of the leaders.
 ## Todo
 
 - Change `receive_message` in ui to accept a list of messages, which refreshes the entire log
-- Fix pytest to work with uv
 - Add toasts to ui, error handling, start looking into nds stuff
 
 ## Development
