@@ -14,16 +14,11 @@ algorithms. The leaders of all networks are stored in a central Node Discovery
 Service (NDS) through which a Node can discover existing networks and the
 addresses of the leaders.
 
-## Discussion for next week
+## Todo
 
-- Should we develop in
-  [containers](https://docs.astral.sh/uv/guides/integration/docker/#developing-in-a-container)?  
-  Could be nice because we could do a docker-compose file with nds and like 3
-  copies of node, and they would update when code changes.
-
-- ruff & config
-
-- uv build-system, scripts
+- Change `receive_message` in ui to accept a list of messages, which refreshes the entire log
+- Fix pytest to work with uv
+- Add toasts to ui, error handling, start looking into nds stuff
 
 ## Development
 
@@ -34,28 +29,18 @@ Code is formatted and linted using [ruff](https://docs.astral.sh/ruff/). VS Code
 has a nice extension for it, be sure to enable it as the default Python
 formatter.
 
-Install dependencies for nds:
+Install dependencies for services:
 
 ```
 cd nds
 uv sync
 ```
 
-Install dependencies for client:
-
 ```
 cd client
 uv sync
 ```
-## Tests
-install pytest 
-```
-uv pip install pytest
-```
-run in directory of the service.
-```
-pytest
-```
+
 ### Client ui development
 
 For effective ui development, launch textual development console:
@@ -76,3 +61,11 @@ uvx --from textual-dev textual run --dev --port 7654 ./client/ui.py
 ```
 
 `print()` statements will be logged on the dev console with this setup.
+
+### Tests
+
+Run in directory of the service
+
+```
+uv run pytest
+```
