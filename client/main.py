@@ -1,5 +1,5 @@
 from modules.ui.ui import ChatApp, Group, Node
-from client.modules.service.server  import fetch_groups, add_node_discovery_source, create_group, request_to_join_group, request_to_leave_group, get_messages
+from client.modules.service.server  import serve, fetch_groups, add_node_discovery_source, create_group, request_to_join_group, request_to_leave_group, get_messages
 from typing import List
 
 import asyncio
@@ -40,9 +40,9 @@ class Networking:
 		request_to_leave_group(leader_ip=ip, group_id=REQUIRED)
 
 	# Called when a message needs to be added to local display
-	def receive_message(self, msg) -> None:
+	def receive_message(self, source_name, msg) -> None:
+		msg = f"{source_name}: {msg}"
 		self.ui.chat.write(msg)
-
 
 async def main():
 	net = Networking()

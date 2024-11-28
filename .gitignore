@@ -3,7 +3,7 @@ textual.log
 .pytest_cache
 *.db
 *.db
-.venv
+*.venv
 */messages.db.*
 */groups.db.*
 */discovery_server.db

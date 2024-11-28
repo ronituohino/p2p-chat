@@ -46,7 +46,7 @@ class StubNetworking:
 		print("leave " + id)
 
 	# Called when a message needs to be added to local display
-	def receive_message(self, msg) -> None:
+	def receive_message(self, source_name, msg) -> None:
 		self.ui.chat.write(msg)
 
 
@@ -55,7 +55,7 @@ async def repeater(net: StubNetworking):
 	await asyncio.sleep(1)  # Wait for 1s just in case so that ui has time to init
 	for i in range(100):
 		await asyncio.sleep(1)
-		net.receive_message(str(i))
+		net.receive_message(str(i), str(i))
 
 
 async def main():

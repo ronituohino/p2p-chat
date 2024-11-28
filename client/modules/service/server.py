@@ -1,7 +1,6 @@
 import socket
 import uuid
 import logging
-
 import gevent
 import gevent.pywsgi
 import gevent.queue
@@ -31,14 +30,14 @@ class Response:
 
 
 dispatcher = RPCDispatcher()
-self_ip = "127.0.0.1"
-self_name = "bob"
+self_ip = None
+self_name = None
 nds_server = SqliteDict("discovery_server.db", autocommit=True)  
 groups = SqliteDict("groups.db", autocommit=True) 
 message_store = SqliteDict("messages.db", autocommit=True)
-channel_port = 50001
 clients = []
 received_messages = set()
+networking = None
 
 #group_id: { 
 #   group_name, 
@@ -50,10 +49,23 @@ received_messages = set()
 #    }
 
 
+def set_name(name):
+    global self_name
+    self_name = name
 
-def serve(port):
+
+def set_ip(ip):
+    global self_ip
+    self_ip = ip
+
+
+def serve(port=50001, net=None, node_name="None", node_ip="127.0.0.1"):
+    set_ip(node_ip)
+    set_name(node_name)
+    global networking 
+    networking = net
     transport=WsgiServerTransport(queue_class=gevent.queue.Queue)
-    wsgi_server = gevent.pywsgi.WSGIServer(('127.0.0.1', port), transport.handle)
+    wsgi_server = gevent.pywsgi.WSGIServer((node_ip, port), transport.handle)
     gevent.spawn(wsgi_server.serve_forever)
     rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
     rpc_server.serve_forever()
@@ -65,6 +77,7 @@ def create_rpc_client(peer_ip, peer_port=50001):
         HttpPostClientTransport(f"http://{peer_ip}:{peer_port}/")
     )
     return rpc_client
+
 
 def store_message(msg, msg_id, group_id, source_id):
         """Store a message locally."""
@@ -78,7 +91,6 @@ def store_message(msg, msg_id, group_id, source_id):
         })
         message_store[group_id] = messages
 
-    
 
 def get_messages(group_id):
     """Retrieve all messages for a given group_id."""
@@ -98,6 +110,22 @@ def get_group_info(group_id):
         group.get("leader_id",""), 
         group.get("peers", {})
     )
+
+
+def get_group_peers(group_id):
+    """Return all peers related to the group"""
+    group = groups.get(group_id, {})
+    if not group:
+        raise ValueError(f"Group with ID {group_id} does not exist.")
+    return group.get("peers", {})
+
+
+def get_self_id(group_id):
+    """Return self_id related to the group"""
+    group = groups.get(group_id, {})
+    if not group:
+        raise ValueError(f"Group with ID {group_id} does not exist.")
+    return group.get("self_id", {})
 
 
 @dispatcher.public
@@ -311,7 +339,8 @@ def send_message(msg, group_id, source_id, destination_id):
             ip = peers.get(destination_id, "")
             if ip:
                 destination_client = create_rpc_client(ip)
-            else: return "Ip addr. not found"
+            else: 
+                return "Ip addr. not found"
         except KeyError as e:
             return f"Error: {e}"
 
@@ -386,6 +415,10 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 
     if destination_id == self_id:
         received_messages.add(msg_id)
+        peers = get_group_peers(group_id=group_id)
+        peer = peers[source_id]
+        peer_name = peer["name"]
+        networking.receive_messages(source_name=peer_name, msg=msg)
         store_message(msg, msg_id, group_id, source_id)
         return Response(success=True, message="Message received")
     else:
@@ -403,4 +436,4 @@ def liveness(ip, port):
 
 
 if __name__ == "__main__":
-    serve(port=5000)
+    serve()
