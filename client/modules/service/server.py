@@ -374,6 +374,22 @@ def message_broadcast(msg, msg_id, group_id, source_id):
         send_message_to_peer(rpc_client, msg, msg_id, group_id, source_id, peer_id)
 
 
+def send_message_to_leader(msg, msg_id, group_id, source_id, destination_id=-1):
+    """Send a message to leader.
+    Args:
+        client (object): The rpc_client to the peer.
+        msg (str): the message.
+        msg_id (str): ID of the message.
+        group_id (str): UID of the group.
+        source_id (str): ID of the source peer.
+        destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
+    """
+    _, _, leader_id, peers = get_group_info(group_id)
+    leader_ip = peers[leader_id].get("ip")
+    rpc_client = create_rpc_client(leader_ip)
+    send_message_to_peer(rpc_client, msg, msg_id, group_id, source_id, destination_id)
+
+
 def send_message_to_peer(client, msg, msg_id, group_id, source_id, destination_id=-1):
     """Send a message to individual targeted peer.
 
