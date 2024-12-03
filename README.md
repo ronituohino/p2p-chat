@@ -14,21 +14,72 @@ algorithms. The leaders of all networks are stored in a central Node Discovery
 Service (NDS) through which a Node can discover existing networks and the
 addresses of the leaders.
 
-## Todo
+## Deployment
 
-- Change `receive_message` in ui to accept a list of messages, which refreshes the entire log
-- Add toasts to ui, error handling, start looking into nds stuff
+Software is deployed on the VMs provided by the faculty.  
+These can be connected via SSH.  
+The NDS needs to be on one of the computers, and clients can be run remotely as
+well.
 
-## Development
+To connect to a faculty VM
 
-Make sure you have the [uv](https://docs.astral.sh/uv/) package manager
-installed.
+```
+ssh -J <UoH username>@<jump proxy> <UoH username>@<vm>
+```
 
-Code is formatted and linted using [ruff](https://docs.astral.sh/ruff/). VS Code
-has a nice extension for it, be sure to enable it as the default Python
-formatter.
+Jump proxies: `melkki.cs.helsinki.fi`  
+VMs: `svm-11.cs.helsinki.fi`, `svm-11-2.cs.helsinki.fi`,
+`svm-11-3.cs.helsinki.fi`
 
-Install dependencies for services:
+e.g.
+
+```
+ssh -J roturo@melkki.cs.helsinki.fi roturo@svm-11.cs.helsinki.fi
+```
+
+Enter UoH account password when prompted (usually twice), once for the jump
+proxy, and once for the vm itself.
+
+Clone the git repo in your home folder (where you automatically end up after
+login)
+
+```
+git clone https://github.com/ronituohino/p2p-chat.git
+```
+
+```
+cd p2p-chat
+```
+
+Continue with the `Requirements` instructions.
+
+## Requirements
+
+Install the [uv](https://docs.astral.sh/uv/) package manager installed if not
+already present
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Either close and reopen the terminal, or run
+
+```
+source $HOME/.local/bin/env
+```
+
+Continue with either the `Running the software` instructions, or the
+`Development` instructions.
+
+## Running the software
+
+Make sure the repo is up to date
+
+```
+git pull
+```
+
+Install dependencies for services
 
 ```
 cd nds
@@ -39,6 +90,24 @@ uv sync
 cd client
 uv sync
 ```
+
+To run NDS
+
+```
+uv run ./nds/main.py
+```
+
+To run client
+
+```
+uv run ./client/main.py
+```
+
+## Development
+
+Code is formatted and linted using [ruff](https://docs.astral.sh/ruff/). VS Code
+has a nice extension for it, be sure to enable it as the default Python
+formatter.
 
 ### Client ui development
 
