@@ -51,13 +51,14 @@ class ChatApp(App):
 		self.chat = chat
 		networks = self.query_one("Networks")
 		self.networks = networks
+
 		self.net.register_ui(self)
-		thread = threading.Thread(
-			target=self.serve, args=(self.port, self.net, self.node_name, self.node_ip), daemon=True
-		)
-		thread.start()
 
-
+		if(self.serve is not None):
+			thread = threading.Thread(
+				target=self.serve, args=(self.port, self.net, self.node_name, self.node_ip), daemon=True
+			)
+			thread.start()
 
 	def compose(self) -> ComposeResult:
 		with Horizontal():
