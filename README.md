@@ -94,13 +94,15 @@ uv sync
 To run NDS
 
 ```
-uv run ./nds/main.py
+cd nds
+uv run main.py
 ```
 
 To run client
 
 ```
-uv run ./client/main.py
+cd client
+uv run main.py
 ```
 
 ## Development
