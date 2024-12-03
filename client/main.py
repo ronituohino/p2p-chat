@@ -1,8 +1,5 @@
-import threading
-import concurrent.futures
-
 from modules.ui.ui import ChatApp
-from modules.ui.structs import Group, Node
+from modules.ui.structs import Group
 from modules.service.server import (
 	serve,
 	fetch_groups,
@@ -10,10 +7,7 @@ from modules.service.server import (
 	create_group,
 	request_to_join_group,
 	request_to_leave_group,
-	get_messages,
 )
-import asyncio
-from typing import List
 
 ### CLIENT ENTRYPOINT
 
@@ -41,12 +35,14 @@ class Networking:
 		)
 
 	# Called when contacting nds to create a new group
-	## TODO: UI SUPPORT
-	async def create_group(self, name, nds_ip):
-		create_group(
-			group_name=name, nds_ip=nds_ip
-		)  # Creation of a group already requires nds server set, so nds_ip should be known.
-		groups = fetch_groups()
+	# Creation of a group already requires nds server set, so nds_ip should be known.
+	## TODO: Error handling
+	async def create_group(self, name, nds_ip) -> Group:
+		new_group: Group | None = create_group(group_name=name, nds_ip=nds_ip)
+		if new_group is None:
+			print("Failed to create group!")
+			return
+		return new_group
 
 	# Called when contacting leader of group to join
 	## either ip of leader, or nds_id + group_id
