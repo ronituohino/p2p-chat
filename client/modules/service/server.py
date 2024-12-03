@@ -12,6 +12,7 @@ from tinyrpc.transports.http import HttpPostClientTransport
 from tinyrpc import RPCClient
 from sqlitedict import SqliteDict
 
+
 class Response:
     def __init__(self, success: bool, message: str, data=None):
         self.success = success
@@ -22,28 +23,24 @@ class Response:
         return f"Response(success={self.success}, message='{self.message}', data={self.data})"
 
     def to_dict(self):
-        return {
-            "success": self.success,
-            "message": self.message,
-            "data": self.data,
-        }
+        return {"success": self.success, "message": self.message, "data": self.data}
 
 
 dispatcher = RPCDispatcher()
 self_ip = None
 self_name = None
-nds_server = SqliteDict("discovery_server.db", autocommit=True)  
-groups = SqliteDict("groups.db", autocommit=True) 
+nds_server = SqliteDict("discovery_server.db", autocommit=True)
+groups = SqliteDict("groups.db", autocommit=True)
 message_store = SqliteDict("messages.db", autocommit=True)
 clients = []
 received_messages = set()
 networking = None
 
 
-#group_id: { 
-#   group_name, 
+# group_id: {
+#   group_name,
 #   self_id,
-#   leader_id, 
+#   leader_id,
 #   vector_clock,
 #    peers: {
 #        id: {name, ip}
@@ -64,9 +61,12 @@ def set_ip(ip):
 def serve(port=50001, net=None, node_name="None", node_ip="127.0.0.1"):
     set_ip(node_ip)
     set_name(node_name)
-    global networking 
+    global networking
     networking = net
-    transport=WsgiServerTransport(queue_class=gevent.queue.Queue)
+
+    net.receive_message("bot", "hi")
+
+    transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
     wsgi_server = gevent.pywsgi.WSGIServer((node_ip, port), transport.handle)
     gevent.spawn(wsgi_server.serve_forever)
     rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
@@ -75,23 +75,18 @@ def serve(port=50001, net=None, node_name="None", node_ip="127.0.0.1"):
 
 def create_rpc_client(peer_ip, peer_port=50001):
     rpc_client = RPCClient(
-        JSONRPCProtocol(),
-        HttpPostClientTransport(f"http://{peer_ip}:{peer_port}/")
+        JSONRPCProtocol(), HttpPostClientTransport(f"http://{peer_ip}:{peer_port}/")
     )
     return rpc_client
 
 
 def store_message(msg, msg_id, group_id, source_id):
-        """Store a message locally."""
-        if group_id not in message_store:
-            message_store[group_id] = []
-        messages = message_store[group_id]
-        messages.append({
-            "msg_id": msg_id,
-            "source_id": source_id,
-            "msg": msg
-        })
-        message_store[group_id] = messages
+    """Store a message locally."""
+    if group_id not in message_store:
+        message_store[group_id] = []
+    messages = message_store[group_id]
+    messages.append({"msg_id": msg_id, "source_id": source_id, "msg": msg})
+    message_store[group_id] = messages
 
 
 def get_messages(group_id):
@@ -102,40 +97,41 @@ def get_messages(group_id):
 
 def get_group_info(group_id):
     """Return (
-        group_name: str,
-        self_id: id, 
-        leader_id: id, 
-        vector_clock: id, 
-        peers: Dict
-      )"""
+      group_name: str,
+      self_id: id,
+      leader_id: id,
+      vector_clock: id,
+      peers: Dict
+    )"""
 
     group = groups.get(group_id, {})
     if not group:
         raise ValueError(f"Group with ID {group_id} does not exist.")
 
-    return ( 
-        group.get("group_name",""), 
-        group.get("self_id",""), 
-        group.get("leader_id",""), 
+    return (
+        group.get("group_name", ""),
+        group.get("self_id", ""),
+        group.get("leader_id", ""),
         group.get("vector_clock", 0),
-        group.get("peers", {})
+        group.get("peers", {}),
     )
+
 
 def update_group_info(group_id, group_name, self_id, leader_id, vector_clock, peers):
     """Updates (
-        group_name: str,
-        self_id: id, 
-        leader_id: id, 
-        vector_clock: id, 
-        peers: Dict
-      )"""
+      group_name: str,
+      self_id: id,
+      leader_id: id,
+      vector_clock: id,
+      peers: Dict
+    )"""
     groups[group_id] = {
         "group_name": group_name,
         "self_id": self_id,
         "leader_id": leader_id,
         "vector_clock": vector_clock,
-        "peers": peers
-        }
+        "peers": peers,
+    }
 
 
 def get_group_peers(group_id):
@@ -174,7 +170,7 @@ def add_node_discovery_source(nds_ip) -> bool:
         bool: True, indicates success
     """
     rpc_client = create_rpc_client(nds_ip)
-    nds_server[nds_ip]=rpc_client
+    nds_server[nds_ip] = rpc_client
     return True
 
 
@@ -196,7 +192,7 @@ def request_to_join_group(leader_ip, group_id):
             "self_id": response.assigned_peer_id,
             "leader_id": response.leader_id,
             "vector_clock": response.vector_clock,
-            "peers": response.peers
+            "peers": response.peers,
         }
 
         logging.info(f"Joined group with Peer ID: {response.assigned_peer_id}")
@@ -226,7 +222,7 @@ def request_to_leave_group(leader_ip, group_id):
 
 
 def is_group_leader(leader_id, self_id):
-    """ A simple way to check if current node is leader or not.
+    """A simple way to check if current node is leader or not.
     Args:
         leader_id (str): ID of the leader
         self_id (str): ID of the current node
@@ -256,9 +252,7 @@ def create_group(group_name, nds_ip):
         raise ValueError("Group name cannot be empty")
 
     remote_server = rpc_client.get_proxy()
-    response = remote_server.create_group(
-        leader_ip=self_ip, group_name=group_name
-    )
+    response = remote_server.create_group(leader_ip=self_ip, group_name=group_name)
 
     if response.success:
         group_id = response.group_id
@@ -267,18 +261,16 @@ def create_group(group_name, nds_ip):
             "self_id": 0,
             "leader_id": 0,
             "vector_clock": 0,
-            "peers": {
-                0: { "name": self_name, "ip": self_ip}
-            },
+            "peers": {0: {"name": self_name, "ip": self_ip}},
         }
         logging.info(f"Created group {group_name} with ID: {group_id}")
-    else: 
+    else:
         return -1
 
 
 @dispatcher.public
 def join_group(group_id, peer_ip, peer_name):
-    """An server implementation that allows user to join a group. 
+    """An server implementation that allows user to join a group.
     This is called when client accesses the group leader.
 
     Args:
@@ -287,37 +279,50 @@ def join_group(group_id, peer_ip, peer_name):
         peer_name (peer_name): name of the peer node.
 
     Returns:
-        response: If success return data of the group. 
+        response: If success return data of the group.
     """
-    group_name, self_id, leader_id, vector_clock ,peers = get_group_info(group_id)
+    group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
     if not is_group_leader(leader_id, self_id):
         return Response(success=False, message="Only leader can validate users.")
 
-
     for peer in peers.values():
         if peer["name"] == peer_name:
-            return Response(success=False, message="Peer name already exists in the group.")
+            return Response(
+                success=False, message="Peer name already exists in the group."
+            )
         if peer["ip"] == peer_ip:
-            return Response(success=False, message="Peer IP already exists in the group.")
+            return Response(
+                success=False, message="Peer IP already exists in the group."
+            )
 
     assigned_peer_id = max(peers.keys(), default=0) + 1
-    peers[assigned_peer_id] = {"name": peer_name, "ip": peer_ip} 
+    peers[assigned_peer_id] = {"name": peer_name, "ip": peer_ip}
     groups[group_id] = {
-        "group_name": group_name, 
+        "group_name": group_name,
         "self_id": self_id,
-        "peers": peers, 
+        "peers": peers,
         "leader_id": leader_id,
-        "vector_clock": vector_clock
-        }
-    
+        "vector_clock": vector_clock,
+    }
+
     logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 
-    return Response(success=True, message="Joined a group successfully", data={"group_name": group_name, "peers": peers, "assigned_peer_id": assigned_peer_id, "leader_id": leader_id, "vector_clock": vector_clock})
+    return Response(
+        success=True,
+        message="Joined a group successfully",
+        data={
+            "group_name": group_name,
+            "peers": peers,
+            "assigned_peer_id": assigned_peer_id,
+            "leader_id": leader_id,
+            "vector_clock": vector_clock,
+        },
+    )
 
 
 @dispatcher.public
 def leave_group(group_id, peer_id):
-    """ A way for client to send leave request
+    """A way for client to send leave request
       to leader node of the group.
 
     Args:
@@ -327,7 +332,7 @@ def leave_group(group_id, peer_id):
     Returns:
         response: Success or fail response
     """
-          
+
     group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
     if not is_group_leader(leader_id, self_id):
         return Response(success=False, message="Only leader can delete users.")
@@ -339,7 +344,7 @@ def leave_group(group_id, peer_id):
             "self_id": self_id,
             "leader_id": leader_id,
             "vector_clock": vector_clock,
-            "peers": peers
+            "peers": peers,
         }
         logging.info(f"Peer {peer_id} left the group")
         return Response(success=True, message="Successfully left the group")
@@ -358,11 +363,18 @@ def message_broadcast(msg, msg_id, group_id, source_id):
     group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
     if not peers:
         logging.info(f"No peers found for group {group_id}.")
-        return 
+        return
 
     vector_clock += 1
     msg = (vector_clock, msg)
-    update_group_info(group_id=group_id, group_name=group_name, self_id=self_id, leader_id=leader_id, vector_clock=vector_clock, peers=peers)
+    update_group_info(
+        group_id=group_id,
+        group_name=group_name,
+        self_id=self_id,
+        leader_id=leader_id,
+        vector_clock=vector_clock,
+        peers=peers,
+    )
 
     logging.info(f"Broadcasting message to peers: {peers}")
     for peer_id, peer_info in peers.items():
@@ -389,7 +401,9 @@ def send_message(msg, group_id):
         rpc_client = create_rpc_client(leader_ip)
         return send_message_to_peer(rpc_client, msg, msg_id, group_id)
     else:
-        logging.error(f"IP addr. for leader {leader_ip} in group {group_id} does not exist")
+        logging.error(
+            f"IP addr. for leader {leader_ip} in group {group_id} does not exist"
+        )
 
 
 def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
@@ -405,7 +419,9 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
     """
     source_id = get_self_id(group_id)
     remote_server = client.get_proxy()
-    response = remote_server.receive_message(msg, msg_id, group_id, source_id, destination_id)
+    response = remote_server.receive_message(
+        msg, msg_id, group_id, source_id, destination_id
+    )
     if response.success:
         logging.info(f"Message sent, here is response: {response.message}")
     else:
@@ -414,7 +430,7 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
 
 @dispatcher.public
 def receive_message(msg, msg_id, group_id, source_id, destination_id):
-    """ Handle receiving a message from peer.
+    """Handle receiving a message from peer.
     If message is meant for current node, then it will store it, otherwise it will
     broadcast it forward.
 
@@ -428,7 +444,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
     Returns:
         response: success / fail
     """
-    _, self_id, leader_id, _ , _ = get_group_info(group_id)
+    _, self_id, leader_id, _, _ = get_group_info(group_id)
 
     if msg_id in received_messages:
         return Response(success=True, message="Duplicate message")
@@ -449,17 +465,19 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
         networking.receive_messages(source_name=peer_name, msg=msg)
         message_broadcast(msg, msg_id, group_id, source_id, destination_id)
     else:
-        return Response(success=False, message="Error message sent to incorrect location.")
+        return Response(
+            success=False, message="Error message sent to incorrect location."
+        )
 
 
 @dispatcher.public
 def liveness(ip, port):
-	"""Liveness check that a node is alive."""
-	try:
-		with socket.create_connection((ip, port), timeout=2):
-			return True
-	except (socket.timeout, socket.error):
-		return False
+    """Liveness check that a node is alive."""
+    try:
+        with socket.create_connection((ip, port), timeout=2):
+            return True
+    except (socket.timeout, socket.error):
+        return False
 
 
 if __name__ == "__main__":

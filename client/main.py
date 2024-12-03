@@ -1,8 +1,17 @@
-from modules.ui.ui import ChatApp, Group, Node
-from client.modules.service.server  import serve, fetch_groups, add_node_discovery_source, create_group, request_to_join_group, request_to_leave_group, get_messages
-from typing import List
+import threading
+import concurrent.futures
 
-import asyncio
+from modules.ui.ui import ChatApp
+from modules.service.server import (
+	serve,
+	fetch_groups,
+	add_node_discovery_source,
+	create_group,
+	request_to_join_group,
+	request_to_leave_group,
+	get_messages,
+)
+from typing import List
 
 ### CLIENT ENTRYPOINT
 
@@ -18,20 +27,22 @@ class Networking:
 	## API
 
 	# Called when contacting nds to get the groups of that network
-	async def add_discovery_source(self, nds_ip) -> List[Group]:
+	async def add_discovery_source(self, nds_ip):
 		add_node_discovery_source(nds_ip)
 		groups = fetch_groups()
 
 	# Called when contacting nds to create a new group
 	## TODO: UI SUPPORT
-	async def create_group(self, name, nds_ip) -> Group:
-		create_group(group_name=name, nds_ip=nds_ip)  # Creation of a group already requires nds server set, so nds_ip should be known.
+	async def create_group(self, name, nds_ip):
+		create_group(
+			group_name=name, nds_ip=nds_ip
+		)  # Creation of a group already requires nds server set, so nds_ip should be known.
 		groups = fetch_groups()
-		
+
 	# Called when contacting leader of group to join
 	## either ip of leader, or nds_id + group_id
 	## TODO: UI SUPPORT
-	async def join_group(self, group_id, ip) -> List[Node]:
+	async def join_group(self, group_id, ip):
 		group = request_to_join_group(leader_ip=ip, group_id=REQUIRED)
 
 	# Called when contacting leader of group to leave
@@ -39,23 +50,32 @@ class Networking:
 	async def leave_group(self, group_id, ip) -> None:
 		request_to_leave_group(leader_ip=ip, group_id=REQUIRED)
 
-	async def send_message(self, group_id, )
+	async def send_message(self, group_id):
+		pass
+
 	# Called when a message needs to be added to local display
 	def receive_message(self, source_name, msg) -> None:
 		msg = f"{source_name}: {msg}"
 		self.ui.chat.write(msg)
 
-async def main():
+
+def main():
 	net = Networking()
 	app = ChatApp(net=net)
 
-	task1 = asyncio.create_task(app.run_async(serve()))
-	## TODO: add actual rpc server as async
-	# task2 = asyncio.create_task()
+	t1 = threading.Thread(app.run())  # app.run_async() available, uses asyncio
+	t2 = threading.Thread(
+		serve(net=net)
+	)  # this one uses gevent, which has its own event loop
+	# asyncio-gevent library could be used maybe? I tried, but didn't get it to work
+	# also thought about switching tinyrpc to something else but not sure if it would help
 
-	await task1
-	# await task2
+	t1.start()
+	t2.start()
+
+	while True:
+		pass
 
 
 if __name__ == "__main__":
-	asyncio.run(main())
+	main()
