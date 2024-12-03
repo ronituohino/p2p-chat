@@ -29,7 +29,7 @@ class Response:
 dispatcher = RPCDispatcher()
 self_ip = None
 self_name = None
-nds_server = SqliteDict("discovery_server.db", autocommit=True)
+nds_servers = SqliteDict("discovery_server.db", autocommit=True)
 groups = SqliteDict("groups.db", autocommit=True)
 message_store = SqliteDict("messages.db", autocommit=True)
 clients = []
@@ -153,13 +153,14 @@ def get_self_id(group_id):
 
 
 @dispatcher.public
-def fetch_groups():
+def fetch_groups(nds_ip):
     """Returns all possible groups to join"""
-    groups = []
-    for client in nds_server:
-        remote_server = client.get_proxy()
-        groups.append(remote_server.get_groups())
-    return groups
+    nds = nds_servers.get(nds_ip)
+    remote_server = nds.get_proxy()
+    response = remote_server.get_groups()
+    if response["success"]:
+        return response["data"]["groups"]
+    return []
 
 
 def add_node_discovery_source(nds_ip) -> bool:
@@ -172,7 +173,7 @@ def add_node_discovery_source(nds_ip) -> bool:
         bool: True, indicates success
     """
     rpc_client = create_rpc_client(nds_ip)
-    nds_server[nds_ip] = rpc_client
+    nds_servers[nds_ip] = rpc_client
     return True
 
 
@@ -246,7 +247,7 @@ def create_group(group_name, nds_ip):
     Returns:
         list: updated group list
     """
-    rpc_client = nds_server.get(nds_ip, False)
+    rpc_client = nds_servers.get(nds_ip, False)
     if not rpc_client:
         raise ValueError(f"NDS server with IP {nds_ip} does not exist.")
 

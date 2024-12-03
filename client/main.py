@@ -2,6 +2,7 @@ import threading
 import concurrent.futures
 
 from modules.ui.ui import ChatApp
+from modules.ui.structs import Group, Node
 from modules.service.server import (
 	serve,
 	fetch_groups,
@@ -30,7 +31,14 @@ class Networking:
 	# Called when contacting nds to get the groups of that network
 	async def add_discovery_source(self, nds_ip):
 		add_node_discovery_source(nds_ip)
-		groups = fetch_groups()
+		groups = fetch_groups(nds_ip)
+
+		return map(
+			lambda g: Group(
+				name=g["group_name"], group_id=g["group_id"], leader_ip=g["leader_ip"]
+			),
+			groups,
+		)
 
 	# Called when contacting nds to create a new group
 	## TODO: UI SUPPORT
@@ -62,11 +70,9 @@ class Networking:
 
 def main():
 	net = Networking()
-	app = ChatApp(net=net, serve=serve, port=50001, node_name="node", node_ip="127.0.0.1")
-	# app.run_async() available, uses asyncio
-  	# this one uses gevent, which has its own event loop
-	# asyncio-gevent library could be used maybe? I tried, but didn't get it to work
-	# also thought about switching tinyrpc to something else but not sure if it would help
+	app = ChatApp(
+		net=net, serve=serve, port=50001, node_name="node", node_ip="127.0.0.1"
+	)
 	app.run()
 
 

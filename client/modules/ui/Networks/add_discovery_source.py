@@ -22,8 +22,8 @@ class AddDiscoverySource(ModalScreen):
 		background: $surface;
 	}
 
-	#name_input, #nds_ip {
-		margin-top: 1;
+	#nds_ip {
+		margin-top: 2;
 		height: 3;
 		content-align: left middle;
 		border: solid $accent 80%;
@@ -45,21 +45,18 @@ class AddDiscoverySource(ModalScreen):
 	def compose(self) -> ComposeResult:
 		with Vertical(id="dialog"):
 			yield Label("Add Discovery Source", id="nds-label")
-			yield Input(id="name_input")
 			yield Input(id="nds_ip")
 			with Horizontal(id="buttons"):
 				yield Button.error("Cancel")
 				yield Button("Add", variant="primary", id="add")
 
 	def on_mount(self) -> None:
-		name_input = self.query_one("#name_input")
-		name_input.border_title = "Name"
 		ip_input = self.query_one("#nds_ip")
 		ip_input.border_title = "NDS IP Address"
 
 	async def on_button_pressed(self, event: Button.Pressed) -> None:
 		if event.button.id == "add":
-			nds_ip = self.query_one("Input").value
+			nds_ip = self.query_one("#nds_ip").value
 			groups = await self.app.net.add_discovery_source(nds_ip)
 			self.app.networks.add_groups(nds_ip, groups)
 			self.app.networks.refresh_networks()
