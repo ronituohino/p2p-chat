@@ -1,4 +1,5 @@
-from modules.ui.ui import ChatApp, Group, Node
+from modules.ui.ui import ChatApp
+from modules.ui.structs import Group, Node
 
 from typing import List
 
@@ -22,13 +23,16 @@ class StubNetworking:
 	async def add_discovery_source(self, nds_ip) -> List[Group]:
 		print("dis + " + nds_ip)
 		await asyncio.sleep(1)
-		return [Group("best server"), Group("PropagandaChat")]
+		return [
+			Group(name="best server", group_id="1", leader_ip="temp_ip"),
+			Group(name="PropagandaChat", group_id="1", leader_ip="temp_ip"),
+		]
 
 	# Called when contacting nds to create a new group
 	async def create_group(self, name, nds_ip) -> Group:
 		print("connecting to: " + nds_ip + " -to create group: " + name)
 		await asyncio.sleep(1)
-		return Group(name)
+		return Group(name, group_id="-1", leader_ip="temp_ip")
 
 	# Called when contacting leader of network to join
 	## either ip of leader, or nds_id + group_id

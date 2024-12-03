@@ -8,17 +8,6 @@ from modules.ui.Networks.add_discovery_source import AddDiscoverySource
 from modules.ui.Networks.create_group import CreateGroup
 
 
-# Structs for objects
-class Group:
-	def __init__(self, name) -> None:
-		self.name = name
-
-
-class Node:
-	def __init__(self, name) -> None:
-		self.name = name
-
-
 class ChatApp(App):
 	"""The main ui class"""
 
@@ -36,10 +25,10 @@ class ChatApp(App):
 	]
 
 	def __init__(self, net) -> None:
+		super().__init__()
 		self.net = net
 		self.chat = None
 		self.networks = None
-		super().__init__()
 
 	def on_mount(self):
 		chat = self.query_one("Chat")
