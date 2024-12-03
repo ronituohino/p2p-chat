@@ -1,5 +1,6 @@
+from typing import Optional
 from modules.ui.ui import ChatApp
-from modules.ui.structs import Group
+from structs import Group
 from modules.service.server import (
 	serve,
 	fetch_groups,
@@ -37,23 +38,26 @@ class Networking:
 	# Called when contacting nds to create a new group
 	# Creation of a group already requires nds server set, so nds_ip should be known.
 	## TODO: Error handling
-	async def create_group(self, name, nds_ip) -> Group:
-		new_group: Group | None = create_group(group_name=name, nds_ip=nds_ip)
+	async def create_group(self, name, nds_ip) -> Optional[Group]:
+		new_group = create_group(group_name=name, nds_ip=nds_ip)
 		if new_group is None:
 			print("Failed to create group!")
 			return
 		return new_group
 
 	# Called when contacting leader of group to join
-	## either ip of leader, or nds_id + group_id
-	## TODO: UI SUPPORT
-	async def join_group(self, group_id, ip):
-		group = request_to_join_group(leader_ip=ip, group_id=REQUIRED)
+	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
+	async def join_group(self, group_id, leader_ip) -> Optional[Group]:
+		group = request_to_join_group(leader_ip, group_id)
+		if group is None:
+			print("Failed to join group!")
+			return
+		return group
 
 	# Called when contacting leader of group to leave
-	## TODO: UI SUPPORT
-	async def leave_group(self, group_id, ip) -> None:
-		request_to_leave_group(leader_ip=ip, group_id=REQUIRED)
+	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
+	async def leave_group(self, group_id, leader_ip) -> None:
+		request_to_leave_group(leader_ip, group_id)
 
 	async def send_message(self, group_id):
 		pass

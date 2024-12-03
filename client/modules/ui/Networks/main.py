@@ -1,7 +1,7 @@
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static, Tree
-from modules.ui.structs import Group
+from structs import Group
 
 
 class Networks(Static):

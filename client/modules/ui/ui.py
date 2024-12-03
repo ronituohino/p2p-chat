@@ -9,17 +9,6 @@ from modules.ui.Networks.add_discovery_source import AddDiscoverySource
 from modules.ui.Networks.create_group import CreateGroup
 
 
-# Structs for objects
-class Group:
-	def __init__(self, name) -> None:
-		self.name = name
-
-
-class Node:
-	def __init__(self, name) -> None:
-		self.name = name
-
-
 class ChatApp(App):
 	"""The main ui class"""
 
@@ -54,9 +43,11 @@ class ChatApp(App):
 
 		self.net.register_ui(self)
 
-		if(self.serve is not None):
+		if self.serve is not None:
 			thread = threading.Thread(
-				target=self.serve, args=(self.port, self.net, self.node_name, self.node_ip), daemon=True
+				target=self.serve,
+				args=(self.port, self.net, self.node_name, self.node_ip),
+				daemon=True,
 			)
 			thread.start()
 
@@ -73,3 +64,10 @@ class ChatApp(App):
 	def action_create_group(self) -> None:
 		"""An action to create a new group"""
 		self.push_screen(CreateGroup())
+
+	def check_action(self, action, parameters):
+		if self.networks is None:
+			return None
+		elif action == "create_group" and not self.networks.network_labels:
+			return None
+		return True

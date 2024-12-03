@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import socket
 import uuid
 import logging
@@ -11,47 +10,9 @@ from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
 from tinyrpc.transports.http import HttpPostClientTransport
 from tinyrpc import RPCClient
+from typing import Optional, List
 from sqlitedict import SqliteDict
-from modules.ui.structs import Group
-
-
-class Response:
-	def __init__(self, success=None, message=None, data=None):
-		self.success = success
-		self.message = message
-		self.data = data
-
-	def __repr__(self):
-		return f"Response(success={self.success}, message='{self.message}', data={self.data})"
-
-	def to_dict(self):
-		return {"success": self.success, "message": self.message, "data": self.data}
-
-
-@dataclass
-class NDSResponse:
-	"""
-	A class for transforming dict type data received from NDS.
-
-	Attributes
-	----------
-	response : dict
-	    The entire response dictionary from NDS.
-	"""
-
-	response: dict
-
-	@property
-	def success(self) -> bool:
-		return self.response.get("success", False)
-
-	@property
-	def message(self) -> str:
-		return self.response.get("message", "")
-
-	@property
-	def data(self) -> dict:
-		return self.response.get("data", {})
+from structs import Group, Node, NDSResponse, Response
 
 
 dispatcher = RPCDispatcher()
@@ -205,7 +166,7 @@ def add_node_discovery_source(nds_ip) -> bool:
 	return True
 
 
-def request_to_join_group(leader_ip, group_id):
+def request_to_join_group(leader_ip, group_id) -> Optional[List[Node]]:
 	"""_summary_
 
 	Args:
@@ -227,7 +188,7 @@ def request_to_join_group(leader_ip, group_id):
 		}
 
 		logging.info(f"Joined group with Peer ID: {response.data['assigned_peer_id']}")
-		return groups[group_id]
+		return groups[group_id]["peers"]
 	else:
 		logging.error("Failed to join group")
 
@@ -264,7 +225,7 @@ def is_group_leader(leader_id, self_id):
 	return leader_id == self_id
 
 
-def create_group(group_name, nds_ip) -> Group:
+def create_group(group_name, nds_ip) -> Optional[Group]:
 	"""Create a new group and register it with NDS,
 	  making this peer the leader.
 

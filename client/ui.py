@@ -1,5 +1,5 @@
 from modules.ui.ui import ChatApp
-from modules.ui.structs import Group, Node
+from structs import Group, Node
 from typing import List
 
 import asyncio
