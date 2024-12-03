@@ -36,9 +36,8 @@ class StubNetworking:
 
 	# Called when contacting leader of network to join
 	## either ip of leader, or nds_id + group_id
-	## TODO: UI SUPPORT
-	async def join_group(self, ip) -> List[Node]:
-		print("join " + ip)
+	async def join_group(self, group_id, leader_ip) -> List[Node]:
+		print("Network: join ", group_id, leader_ip)
 		await asyncio.sleep(1)
 		return [Node("Jaakko"), Node("p3kk4"), Node("kklP")]
 

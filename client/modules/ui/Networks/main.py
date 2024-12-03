@@ -43,16 +43,18 @@ class Networks(Static):
 		tree = self.query_one("Tree")
 		self.network_labels = [nds.label.plain for nds in tree.root.children]
 
-	def join_group(self, group: Group):
-		"""Joins a selected group"""
+	async def join_group(self, group_node, group: Group):
+		"""Join a group by contacting the leader, then add peers to the tree"""
 		print("Attempting to join group:", group)
-		pass
+		peers = await self.app.net.join_group(group.group_id, group.leader_ip)
+		for peer in peers:
+			group_node.add_leaf(peer.name)
 
-	def on_tree_node_expanded(self, event: Tree.NodeSelected) -> None:
+	async def on_tree_node_expanded(self, event: Tree.NodeSelected) -> None:
 		"""Called when any node is expanded in the tree"""
 		print("Selected: ", vars(event.node))
 		if isinstance(event.node.data, Group):
-			self.join_group(event.node.data)
+			await self.join_group(event.node, event.node.data)
 
 	def compose(self) -> ComposeResult:
 		with VerticalScroll():
