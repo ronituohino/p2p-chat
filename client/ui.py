@@ -37,16 +37,14 @@ class StubNetworking:
 	# Called when contacting leader of network to join
 	## either ip of leader, or nds_id + group_id
 	async def join_group(self, group_id, leader_ip) -> List[Node]:
-		print("Network: join ", group_id, leader_ip)
 		await asyncio.sleep(1)
+		print("Network: joined group_id - ", group_id, "leader ip - ", leader_ip)
 		return [Node("Jaakko"), Node("p3kk4"), Node("kklP")]
 
 	# Called when contacting leader of network to leave
-	## TODO: UI SUPPORT
-	async def leave_group(self, id) -> None:
-		print("leaving " + id)
+	async def leave_group(self, group_id, leader_ip) -> None:
 		await asyncio.sleep(1)
-		print("leave " + id)
+		print("Network: left group_id - ", group_id, "leader ip - ", leader_ip)
 
 	# Called when a message needs to be added to local display
 	def receive_message(self, source_name, msg) -> None:
