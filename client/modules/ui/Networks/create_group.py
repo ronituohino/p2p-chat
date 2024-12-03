@@ -42,6 +42,7 @@ class CreateGroup(ModalScreen):
 		border-top: none;
 		border-bottom: none;
 		margin-left: 2;
+		margin-top: 1;
 		height: 1;
 	}
 	"""
