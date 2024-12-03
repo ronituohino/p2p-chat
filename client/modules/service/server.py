@@ -39,10 +39,12 @@ clients = []
 received_messages = set()
 networking = None
 
+
 #group_id: { 
 #   group_name, 
 #   self_id,
 #   leader_id, 
+#   vector_clock,
 #    peers: {
 #        id: {name, ip}
 #        }
@@ -99,7 +101,14 @@ def get_messages(group_id):
 
 
 def get_group_info(group_id):
-    """Return all information related to the group"""
+    """Return (
+        group_name: str,
+        self_id: id, 
+        leader_id: id, 
+        vector_clock: id, 
+        peers: Dict
+      )"""
+
     group = groups.get(group_id, {})
     if not group:
         raise ValueError(f"Group with ID {group_id} does not exist.")
@@ -108,8 +117,25 @@ def get_group_info(group_id):
         group.get("group_name",""), 
         group.get("self_id",""), 
         group.get("leader_id",""), 
+        group.get("vector_clock", 0),
         group.get("peers", {})
     )
+
+def update_group_info(group_id, group_name, self_id, leader_id, vector_clock, peers):
+    """Updates (
+        group_name: str,
+        self_id: id, 
+        leader_id: id, 
+        vector_clock: id, 
+        peers: Dict
+      )"""
+    groups[group_id] = {
+        "group_name": group_name,
+        "self_id": self_id,
+        "leader_id": leader_id,
+        "vector_clock": vector_clock,
+        "peers": peers
+        }
 
 
 def get_group_peers(group_id):
@@ -169,6 +195,7 @@ def request_to_join_group(leader_ip, group_id):
             "group_name": response.group_name,
             "self_id": response.assigned_peer_id,
             "leader_id": response.leader_id,
+            "vector_clock": response.vector_clock,
             "peers": response.peers
         }
 
@@ -239,6 +266,7 @@ def create_group(group_name, nds_ip):
             "group_name": group_name,
             "self_id": 0,
             "leader_id": 0,
+            "vector_clock": 0,
             "peers": {
                 0: { "name": self_name, "ip": self_ip}
             },
@@ -261,7 +289,7 @@ def join_group(group_id, peer_ip, peer_name):
     Returns:
         response: If success return data of the group. 
     """
-    group_name, self_id, leader_id, peers = get_group_info(group_id)
+    group_name, self_id, leader_id, vector_clock ,peers = get_group_info(group_id)
     if not is_group_leader(leader_id, self_id):
         return Response(success=False, message="Only leader can validate users.")
 
@@ -278,12 +306,13 @@ def join_group(group_id, peer_ip, peer_name):
         "group_name": group_name, 
         "self_id": self_id,
         "peers": peers, 
-        "leader_id": leader_id
+        "leader_id": leader_id,
+        "vector_clock": vector_clock
         }
     
     logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 
-    return Response(success=True, message="Joined a group successfully", data={"group_name": group_name, "peers": peers, "assigned_peer_id": assigned_peer_id, "leader_id": leader_id})
+    return Response(success=True, message="Joined a group successfully", data={"group_name": group_name, "peers": peers, "assigned_peer_id": assigned_peer_id, "leader_id": leader_id, "vector_clock": vector_clock})
 
 
 @dispatcher.public
@@ -299,7 +328,7 @@ def leave_group(group_id, peer_id):
         response: Success or fail response
     """
           
-    group_name, self_id, leader_id, peers = get_group_info(group_id)
+    group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
     if not is_group_leader(leader_id, self_id):
         return Response(success=False, message="Only leader can delete users.")
 
@@ -309,46 +338,12 @@ def leave_group(group_id, peer_id):
             "group_name": group_name,
             "self_id": self_id,
             "leader_id": leader_id,
+            "vector_clock": vector_clock,
             "peers": peers
         }
         logging.info(f"Peer {peer_id} left the group")
         return Response(success=True, message="Successfully left the group")
     return Response(success=False, message="Peer not found")
-
-
-def send_message(msg, group_id, source_id, destination_id):
-    """A method to send a message forward to peers.
-
-    Args:
-        msg (str): A message that user want to send.
-        group_id (str): UID of the group.
-        source_id (str): Peer ID where the message came from.
-        destination_id (str): UID of the peer that we wish to send to.
-
-    Returns:
-        response: Success / Fail
-    """
-    msg_id = str(uuid.uuid4())
-    if destination_id == -1:  
-        logging.info(f"Broadcasting message {msg_id} from {source_id}: {msg}")
-        message_broadcast(group_id, msg_id, source_id, msg)
-        return Response(success=True, message="Message broadcasted")
-    else:
-        try:
-            _, _, _, peers = get_group_info(group_id)
-            ip = peers.get(destination_id, "")
-            if ip:
-                destination_client = create_rpc_client(ip)
-            else: 
-                return "Ip addr. not found"
-        except KeyError as e:
-            return f"Error: {e}"
-
-        if destination_client:
-            send_message_to_peer(destination_client, msg, msg_id, group_id, source_id, destination_id)
-            return Response(success=True, message="Message sent")
-        else:
-            return Response(success=False, message="Destination peer not found")
 
 
 def message_broadcast(msg, msg_id, group_id, source_id):
@@ -360,12 +355,16 @@ def message_broadcast(msg, msg_id, group_id, source_id):
         source_id (str): Peer ID where the message came from.
         destination_id (str): UID of the peer that we wish to send to.
     """
-    _, self_id, _, peers = get_group_info(group_id)
+    group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
     if not peers:
         logging.info(f"No peers found for group {group_id}.")
         return 
 
-    print(f"Broadcasting message to peers: {peers}")
+    vector_clock += 1
+    msg = (vector_clock, msg)
+    update_group_info(group_id=group_id, group_name=group_name, self_id=self_id, leader_id=leader_id, vector_clock=vector_clock, peers=peers)
+
+    logging.info(f"Broadcasting message to peers: {peers}")
     for peer_id, peer_info in peers.items():
         if peer_id == source_id or peer_id == self_id:
             continue
@@ -374,23 +373,26 @@ def message_broadcast(msg, msg_id, group_id, source_id):
         send_message_to_peer(rpc_client, msg, msg_id, group_id, source_id, peer_id)
 
 
-def send_message_to_leader(msg, msg_id, group_id, source_id, destination_id=-1):
-    """Send a message to leader.
+def send_message(msg, group_id):
+    """Send a message to be broadcasted by leader.
     Args:
         client (object): The rpc_client to the peer.
         msg (str): the message.
         msg_id (str): ID of the message.
         group_id (str): UID of the group.
         source_id (str): ID of the source peer.
-        destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
     """
-    _, _, leader_id, peers = get_group_info(group_id)
-    leader_ip = peers[leader_id].get("ip")
-    rpc_client = create_rpc_client(leader_ip)
-    send_message_to_peer(rpc_client, msg, msg_id, group_id, source_id, destination_id)
+    _, _, leader_id, _, peers = get_group_info(group_id)
+    leader_ip = peers[leader_id].get("ip", None)
+    msg_id = str(uuid.uuid4())
+    if leader_ip:
+        rpc_client = create_rpc_client(leader_ip)
+        return send_message_to_peer(rpc_client, msg, msg_id, group_id)
+    else:
+        logging.error(f"IP addr. for leader {leader_ip} in group {group_id} does not exist")
 
 
-def send_message_to_peer(client, msg, msg_id, group_id, source_id, destination_id=-1):
+def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
     """Send a message to individual targeted peer.
 
     Args:
@@ -401,6 +403,7 @@ def send_message_to_peer(client, msg, msg_id, group_id, source_id, destination_i
         source_id (str): ID of the source peer.
         destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
     """
+    source_id = get_self_id(group_id)
     remote_server = client.get_proxy()
     response = remote_server.receive_message(msg, msg_id, group_id, source_id, destination_id)
     if response.success:
@@ -425,7 +428,8 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
     Returns:
         response: success / fail
     """
-    _ , self_id, _ , _ = get_group_info(group_id)
+    _, self_id, leader_id, _ , _ = get_group_info(group_id)
+
     if msg_id in received_messages:
         return Response(success=True, message="Duplicate message")
 
@@ -437,8 +441,15 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
         networking.receive_messages(source_name=peer_name, msg=msg)
         store_message(msg, msg_id, group_id, source_id)
         return Response(success=True, message="Message received")
-    else:
+    elif self_id == leader_id:
+        received_messages.add(msg_id)
+        peers = get_group_peers(group_id=group_id)
+        peer = peers[source_id]
+        peer_name = peer["name"]
+        networking.receive_messages(source_name=peer_name, msg=msg)
         message_broadcast(msg, msg_id, group_id, source_id, destination_id)
+    else:
+        return Response(success=False, message="Error message sent to incorrect location.")
 
 
 @dispatcher.public
