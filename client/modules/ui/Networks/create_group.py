@@ -49,7 +49,7 @@ class CreateGroup(ModalScreen):
 	def compose(self) -> ComposeResult:
 		with Vertical(id="dialog"):
 			yield Label("Create a New Group", id="group-label")
-			yield OptionList(*self.app.networks.get_networks(), id="nds_selector")
+			yield OptionList(*self.app.networks.network_labels, id="nds_selector")
 			yield Input(id="name_input")
 			with Horizontal(id="buttons"):
 				yield Button.error("Cancel")

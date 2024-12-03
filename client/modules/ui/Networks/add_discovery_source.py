@@ -45,4 +45,5 @@ class AddDiscoverySource(Screen):
 			nds_ip = self.query_one("Input").value
 			groups = await self.app.net.add_discovery_source(nds_ip)
 			self.app.networks.add_groups(nds_ip, groups)
+			self.app.networks.refresh_networks()
 		self.app.pop_screen()
