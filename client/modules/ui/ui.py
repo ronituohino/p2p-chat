@@ -61,3 +61,10 @@ class ChatApp(App):
 	def action_create_group(self) -> None:
 		"""An action to create a new group"""
 		self.push_screen(CreateGroup())
+
+	def check_action(self, action, parameters):
+		if self.networks is None:
+			return None
+		elif action == "create_group" and not self.networks.network_labels:
+			return None
+		return True
