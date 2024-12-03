@@ -1,6 +1,8 @@
 from modules.ui.ui import ChatApp
 from modules.ui.structs import Group, Node
-
+from modules.service.server import (
+	serve
+)
 from typing import List
 
 import asyncio
@@ -61,7 +63,7 @@ async def repeater(net: StubNetworking):
 
 async def main():
 	net = StubNetworking()
-	app = ChatApp(net=net)
+	app = ChatApp(net=net, serve=serve)
 
 	task1 = asyncio.create_task(app.run_async())
 	task2 = asyncio.create_task(repeater(net=net))

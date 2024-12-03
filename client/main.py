@@ -11,6 +11,7 @@ from modules.service.server import (
 	request_to_leave_group,
 	get_messages,
 )
+import asyncio
 from typing import List
 
 ### CLIENT ENTRYPOINT
@@ -61,20 +62,12 @@ class Networking:
 
 def main():
 	net = Networking()
-	app = ChatApp(net=net)
-
-	t1 = threading.Thread(app.run())  # app.run_async() available, uses asyncio
-	t2 = threading.Thread(
-		serve(net=net)
-	)  # this one uses gevent, which has its own event loop
+	app = ChatApp(net=net, serve=serve, port=50001, node_name="node", node_ip="127.0.0.1")
+	# app.run_async() available, uses asyncio
+  	# this one uses gevent, which has its own event loop
 	# asyncio-gevent library could be used maybe? I tried, but didn't get it to work
 	# also thought about switching tinyrpc to something else but not sure if it would help
-
-	t1.start()
-	t2.start()
-
-	while True:
-		pass
+	app.run()
 
 
 if __name__ == "__main__":

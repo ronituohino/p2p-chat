@@ -58,13 +58,15 @@ def set_ip(ip):
     self_ip = ip
 
 
-def serve(port=50001, net=None, node_name="None", node_ip="127.0.0.1"):
+def serve(port=50001, net=None, node_name=None, node_ip="127.0.0.1"):
     set_ip(node_ip)
     set_name(node_name)
     global networking
     networking = net
-
-    net.receive_message("bot", "hi")
+    if not networking:
+        gevent.sleep(1)
+    else:
+        net.receive_message("bot", "hi")
 
     transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
     wsgi_server = gevent.pywsgi.WSGIServer((node_ip, port), transport.handle)
