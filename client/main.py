@@ -31,7 +31,7 @@ class Networking:
 
 		return map(
 			lambda g: Group(
-				name=g["group_name"], group_id=g["group_id"], leader_ip=g["leader_ip"], peers=g["peers"]
+				name=g["group_name"], group_id=g["group_id"], leader_ip=g["leader_ip"]
 			),
 			groups,
 		)
