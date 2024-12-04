@@ -48,8 +48,8 @@ class Networks(Static):
 		"""Join a group by contacting the leader, then add peers to the tree"""
 		peers = await self.app.net.join_group(group.group_id, group.leader_ip)
 		if peers:
-			for peer_id, peer_dict in peers.items():
-				group_node.add_leaf(peer_dict[peer_id].name)
+			for _, peer_dict in peers.items():
+				group_node.add_leaf(peer_dict.name)
 		self.app.chat.set_active_group(group)
 
 	async def leave_group(self, group_node, group: Group):
