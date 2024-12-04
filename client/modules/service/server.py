@@ -58,8 +58,6 @@ def serve(net=None, node_name=None):
 	self_name = node_name
 	global networking
 	networking = net
-	global dispatcher
-	dispatcher = RPCDispatcher()
 	transport = CustomWSGITransport(queue_class=gevent.queue.Queue)
 	wsgi_server = gevent.pywsgi.WSGIServer(("0.0.0.0", node_port), transport.handle)
 	gevent.spawn(wsgi_server.serve_forever)
@@ -284,45 +282,50 @@ def join_group(group_id, peer_name):
 	"""
 
 	logging.info(f"Peer {peer_name} requesting to join group.")
-	group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
-	peer_ip = get_ip()
+	try:
+		group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
+		peer_ip = get_ip()
 
-	if not is_group_leader(leader_id, self_id):
-		return Response(success=False, message="Only leader can validate users.").to_dict()
+		if not is_group_leader(leader_id, self_id):
+			return Response(success=False, message="Only leader can validate users.").to_dict()
 
-	for peer in peers.values():
-		if peer["name"] == peer_name:
-			return Response(
-				success=False, message="Peer name already exists in the group."
-			).to_dict()
-		if peer["ip"] == peer_ip:
-			return Response(
-				success=False, message="Peer IP already exists in the group."
-			).to_dict()
+		for peer in peers.values():
+			if peer["name"] == peer_name:
+				return Response(
+					success=False, message="Peer name already exists in the group."
+				).to_dict()
+			if peer["ip"] == peer_ip:
+				return Response(
+					success=False, message="Peer IP already exists in the group."
+				).to_dict()
 
-	assigned_peer_id = max(peers.keys(), default=0) + 1
-	peers[assigned_peer_id] = {"name": peer_name, "ip": peer_ip}
-	groups[group_id] = {
-		"group_name": group_name,
-		"self_id": self_id,
-		"peers": peers,
-		"leader_id": leader_id,
-		"vector_clock": vector_clock,
-	}
-
-	logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
-
-	return Response(
-		success=True,
-		message="Joined a group successfully",
-		data={
+		assigned_peer_id = max(peers.keys(), default=0) + 1
+		peers[assigned_peer_id] = {"name": peer_name, "ip": peer_ip}
+		groups[group_id] = {
 			"group_name": group_name,
+			"self_id": self_id,
 			"peers": peers,
-			"assigned_peer_id": assigned_peer_id,
 			"leader_id": leader_id,
 			"vector_clock": vector_clock,
-		},
-	).to_dict()
+		}
+
+		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
+
+		return Response(
+			success=True,
+			message="Joined a group successfully",
+			data={
+				"group_name": group_name,
+				"peers": peers,
+				"assigned_peer_id": assigned_peer_id,
+				"leader_id": leader_id,
+				"vector_clock": vector_clock,
+			},
+		).to_dict()
+	except Exception as e:
+		logging.error(f"Error in join_group: {e}")
+		return Response(success=False, message="An unexpected error occurred.").to_dict()
+
 
 
 @dispatcher.public
