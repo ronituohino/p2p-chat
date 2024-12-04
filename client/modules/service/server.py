@@ -257,15 +257,16 @@ def create_group(group_name, nds_ip) -> Optional[Group]:
 	response = Response(**response_dict)
 	if response.success:
 		group_id = response.data["group_id"]
+		this_node = {0: {"name": self_name, "ip": response.data["leader_ip"]}}
 		groups[group_id] = {
 			"group_name": group_name,
 			"self_id": 0,
 			"leader_id": 0,
 			"vector_clock": 0,
-			"peers": {0: {"name": self_name, "ip": response.data["leader_ip"]}},
+			"peers": this_node,
 		}
 		logging.info(f"Created group {group_name} with ID: {group_id}")
-		return Group(group_name, group_id, response.data["leader_ip"])
+		return Group(group_name, group_id, response.data["leader_ip"], peers=this_node)
 	else:
 		return None
 

@@ -24,6 +24,7 @@ class Group:
 	name: str
 	group_id: str
 	leader_ip: str
+	peers: dict
 
 
 @dataclass
