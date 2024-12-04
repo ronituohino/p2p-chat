@@ -25,15 +25,13 @@ class ChatApp(App):
 		("c", "create_group", "Create Group"),
 	]
 
-	def __init__(self, net, serve, port, node_name, node_ip) -> None:
+	def __init__(self, net, serve, node_name) -> None:
 		super().__init__()
 		self.net = net
 		self.chat = None
 		self.networks = None
 		self.serve = serve
-		self.port = port
 		self.node_name = node_name
-		self.node_ip = node_ip
 
 	async def on_mount(self):
 		chat = self.query_one("Chat")
@@ -45,9 +43,7 @@ class ChatApp(App):
 
 		if self.serve is not None:
 			thread = threading.Thread(
-				target=self.serve,
-				args=(self.port, self.net, self.node_name, self.node_ip),
-				daemon=True,
+				target=self.serve, args=(self.net, self.node_name), daemon=True
 			)
 			thread.start()
 

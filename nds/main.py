@@ -9,6 +9,21 @@ from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
 from sqlitedict import SqliteDict
 
+# This needs the server to be on one thread, otherwise IPs will get messed up
+env = None
+
+
+# Custom WSGI app to handle IP extraction
+class CustomWSGITransport(WsgiServerTransport):
+	def handle(self, environ, start_response):
+		global env
+		env = environ
+		return super().handle(environ, start_response)
+
+
+def get_ip():
+	return env.get("REMOTE_ADDR", "Unknown IP")
+
 
 dispatcher = RPCDispatcher()
 groups = None
@@ -44,7 +59,7 @@ def serve(ip="0.0.0.0", port=50002, db_path="groups.db", reset_db=False):
 	if reset_db:
 		groups.clear()
 
-	transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
+	transport = CustomWSGITransport(queue_class=gevent.queue.Queue)
 	wsgi_server = gevent.pywsgi.WSGIServer((ip, port), transport.handle)
 	gevent.spawn(wsgi_server.serve_forever)
 	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
@@ -53,18 +68,17 @@ def serve(ip="0.0.0.0", port=50002, db_path="groups.db", reset_db=False):
 
 
 @dispatcher.public
-def create_group(leader_ip, group_name):
+def create_group(group_name):
 	"""Create a new chat."""
 	group_id = str(uuid.uuid4())
 	print(f"Creating a group {group_name}")
-	groups[group_id] = {
-		"leader_ip": leader_ip,
-		"group_id": group_id,
-		"group_name": group_name,
-	}
-	print(f"Group creation successful.")
+
+	leader_ip = get_ip()
+	new_group = {"leader_ip": leader_ip, "group_id": group_id, "group_name": group_name}
+	groups[group_id] = new_group
+
 	return Response(
-		success=True, message="Chat creation successful", data={"group_id": group_id}
+		success=True, message="Chat creation successful", data=new_group
 	).to_dict()
 
 

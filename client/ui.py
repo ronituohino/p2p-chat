@@ -4,6 +4,8 @@ from typing import List
 
 import asyncio
 
+import sys
+
 ### UI DEVELOPMENT ENTRYPOINT
 
 
@@ -59,14 +61,18 @@ async def repeater(net: StubNetworking):
 
 
 async def main():
-	net = StubNetworking()
-	app = ChatApp(net=net, serve=None, port=None, node_name=None, node_ip=None)
+	if len(sys.argv) > 1:
+		name = sys.argv[1]
+		net = StubNetworking()
+		app = ChatApp(net=net, serve=None, node_name=name)
 
-	task1 = asyncio.create_task(app.run_async())
-	task2 = asyncio.create_task(repeater(net=net))
+		task1 = asyncio.create_task(app.run_async())
+		# task2 = asyncio.create_task(repeater(net=net))
 
-	await task1
-	await task2
+		await task1
+		# await task2
+	else:
+		print("Please provide your name using a CLI argument.")
 
 
 if __name__ == "__main__":

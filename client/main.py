@@ -9,6 +9,7 @@ from modules.service.server import (
 	request_to_join_group,
 	request_to_leave_group,
 )
+import sys
 
 ### CLIENT ENTRYPOINT
 
@@ -69,11 +70,13 @@ class Networking:
 
 
 def main():
-	net = Networking()
-	app = ChatApp(
-		net=net, serve=serve, port=50001, node_name="node", node_ip="0.0.0.0"
-	)
-	app.run()
+	if len(sys.argv) > 1:
+		name = sys.argv[1]
+		net = Networking()
+		app = ChatApp(net=net, serve=serve, node_name=name)
+		app.run()
+	else:
+		print("Please provide your name using a CLI argument.")
 
 
 if __name__ == "__main__":

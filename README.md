@@ -14,6 +14,8 @@ algorithms. The leaders of all networks are stored in a central Node Discovery
 Service (NDS) through which a Node can discover existing networks and the
 addresses of the leaders.
 
+## TODO
+
 ## Deployment
 
 Software is deployed on the VMs provided by the faculty.  
@@ -105,7 +107,7 @@ To run client
 
 ```
 cd client
-uv run main.py
+uv run main.py <name>
 ```
 
 ### Note about using the VMs
@@ -137,7 +139,7 @@ After launching the dev console, start the ui itself in a separate terminal
 
 ```
 cd client
-uvx --from textual-dev textual run --dev --port 7654 ui.py
+uvx --from textual-dev textual run --dev --port 7654 ui.py tester
 ```
 
 `print()` statements will be logged on the dev console with this setup.

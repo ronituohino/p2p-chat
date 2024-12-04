@@ -14,15 +14,31 @@ from typing import Optional, List
 from sqlitedict import SqliteDict
 from structs import Group, Node, NDSResponse, Response
 
+# This needs the server to be on one thread, otherwise IPs will get messed up
+env = None
+
+
+# Custom WSGI app to handle IP extraction
+class CustomWSGITransport(WsgiServerTransport):
+	def handle(self, environ, start_response):
+		global env
+		env = environ
+		return super().handle(environ, start_response)
+
+
+def get_ip():
+	return env.get("REMOTE_ADDR", "Unknown IP")
+
 
 dispatcher = RPCDispatcher()
-self_ip = None
-self_name = None
+node_port = 50001
 nds_port = 50002
 nds_servers = SqliteDict("discovery_server.db", autocommit=True)
 groups = SqliteDict("groups.db", autocommit=True)
 message_store = SqliteDict("messages.db", autocommit=True)
 received_messages = set()
+
+self_name = None
 networking = None
 
 
@@ -37,24 +53,14 @@ networking = None
 #    }
 
 
-def set_name(name):
+def serve(net=None, node_name=None):
 	global self_name
-	self_name = name
-
-
-def set_ip(ip):
-	global self_ip
-	self_ip = ip
-
-
-def serve(port=50001, net=None, node_name=None, node_ip="127.0.0.1"):
-	set_ip(node_ip)
-	set_name(node_name)
+	self_name = node_name
 	global networking
 	networking = net
 
-	transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
-	wsgi_server = gevent.pywsgi.WSGIServer((node_ip, port), transport.handle)
+	transport = CustomWSGITransport(queue_class=gevent.queue.Queue)
+	wsgi_server = gevent.pywsgi.WSGIServer(("0.0.0.0", node_port), transport.handle)
 	gevent.spawn(wsgi_server.serve_forever)
 	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
 	rpc_server.serve_forever()
@@ -173,7 +179,7 @@ def request_to_join_group(leader_ip, group_id) -> Optional[List[Node]]:
 	    list: A set of nodes if success.
 	"""
 	rpc_client = create_rpc_client(leader_ip)
-	response = NDSResponse(rpc_client.join_group(group_id, self_ip, self_name))
+	response = NDSResponse(rpc_client.join_group(group_id, self_name))
 	if response.success:
 		groups[group_id] = {
 			"group_name": response.data["group_name"],
@@ -200,7 +206,7 @@ def request_to_leave_group(leader_ip, group_id):
 	    bool: True, if success
 	"""
 	rpc_client = create_rpc_client(leader_ip)
-	response = rpc_client.leave_group(group_id, self_ip, self_name)
+	response = rpc_client.leave_group(group_id, self_name)
 	if response.success:
 		groups[group_id] = None
 		logging.info(f"{response.message} {group_id}")
@@ -240,9 +246,7 @@ def create_group(group_name, nds_ip) -> Optional[Group]:
 		raise ValueError("Group name cannot be empty")
 
 	remote_server = rpc_client.get_proxy()
-	response = NDSResponse(
-		remote_server.create_group(leader_ip=self_ip, group_name=group_name)
-	)
+	response = NDSResponse(remote_server.create_group(group_name=group_name))
 
 	if response.success:
 		group_id = response.data["group_id"]
@@ -251,10 +255,10 @@ def create_group(group_name, nds_ip) -> Optional[Group]:
 			"self_id": 0,
 			"leader_id": 0,
 			"vector_clock": 0,
-			"peers": {0: {"name": self_name, "ip": self_ip}},
+			"peers": {0: {"name": self_name, "ip": response.data["leader_ip"]}},
 		}
 		logging.info(f"Created group {group_name} with ID: {group_id}")
-		return Group(group_name, group_id, self_ip)
+		return Group(group_name, group_id, response.data["leader_ip"])
 	else:
 		return None
 
