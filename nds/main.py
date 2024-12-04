@@ -1,6 +1,7 @@
 import socket
 import uuid
 import gevent
+import logging
 import gevent.pywsgi
 import gevent.queue
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
@@ -59,11 +60,20 @@ def serve(ip="0.0.0.0", port=50002, db_path="groups.db", reset_db=False):
 	if reset_db:
 		groups.clear()
 
+	groups_to_remove = []
+	for group_id, group_data in groups.items():
+		if not group_data.get("peers"):
+			groups_to_remove.append(group_id)
+	
+	for group_id in groups_to_remove:
+		groups.pop(group_id)
+		logging.info(f"Removed empty group: {group_id}")
+
 	transport = CustomWSGITransport(queue_class=gevent.queue.Queue)
 	wsgi_server = gevent.pywsgi.WSGIServer((ip, port), transport.handle)
 	gevent.spawn(wsgi_server.serve_forever)
 	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
-	print(f"NDS listening at {ip} on port {port}")
+	logging.info(f"NDS listening at {ip} on port {port}")
 	rpc_server.serve_forever()
 
 
@@ -71,12 +81,14 @@ def serve(ip="0.0.0.0", port=50002, db_path="groups.db", reset_db=False):
 def create_group(group_name):
 	"""Create a new chat."""
 	group_id = str(uuid.uuid4())
-	print(f"Creating a group {group_name}")
+	logging.info(f"Creating a group {group_name}")
 
 	leader_ip = get_ip()
 	new_group = {"leader_ip": leader_ip, "group_id": group_id, "group_name": group_name}
 	groups[group_id] = new_group
 
+
+	logging.info("Chat creation successful.")
 	return Response(
 		success=True, message="Chat creation successful", data=new_group
 	).to_dict()
@@ -86,6 +98,8 @@ def create_group(group_name):
 def get_groups():
 	"""Get all possible chats to join."""
 	group_list = list(groups.values())
+
+	logging.info("Groups sent successfully.")
 	return Response(
 		success=True, message="Groups fetched successfully", data={"groups": group_list}
 	).to_dict()
@@ -107,6 +121,8 @@ def update_group_leader(group_id, new_leader_ip):
 
 	group["leader_ip"] = new_leader_ip
 	groups[group_id] = group
+
+	logging.info("Leader update successful.")
 	return Response(success=True, message="Leader update successful").to_dict()
 
 
@@ -117,6 +133,7 @@ def get_group_leader(group_id):
 		return Response(success=False, message=f"Group {group_id} not found.").to_dict()
 	group = groups[group_id]
 	current_leader = group["leader_ip"]
+	logging.info("Group leader sent successfully.")
 	return Response(
 		success=True,
 		message="Group leader fetched successfully",

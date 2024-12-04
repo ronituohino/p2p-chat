@@ -58,7 +58,8 @@ def serve(net=None, node_name=None):
 	self_name = node_name
 	global networking
 	networking = net
-
+	global dispatcher
+	dispatcher = RPCDispatcher()
 	transport = CustomWSGITransport(queue_class=gevent.queue.Queue)
 	wsgi_server = gevent.pywsgi.WSGIServer(("0.0.0.0", node_port), transport.handle)
 	gevent.spawn(wsgi_server.serve_forever)
@@ -68,7 +69,7 @@ def serve(net=None, node_name=None):
 
 def create_rpc_client(ip, port):
 	rpc_client = RPCClient(
-		JSONRPCProtocol(), HttpPostClientTransport(f"http://{ip}:{port}/")
+		JSONRPCProtocol(), HttpPostClientTransport(f"http://{ip}:{port}/", timeout=10)
 	)
 	return rpc_client
 
@@ -178,8 +179,10 @@ def request_to_join_group(leader_ip, group_id) -> Optional[List[Node]]:
 	Returns:
 	    list: A set of nodes if success.
 	"""
-	rpc_client = create_rpc_client(leader_ip)
-	response = NDSResponse(rpc_client.join_group(group_id, self_name))
+	rpc_client = create_rpc_client(leader_ip, node_port)
+	# This is request to leader
+	remote_server = rpc_client.get_proxy()
+	response = remote_server.join_group(group_id, self_name)
 	if response.success:
 		groups[group_id] = {
 			"group_name": response.data["group_name"],
@@ -192,7 +195,7 @@ def request_to_join_group(leader_ip, group_id) -> Optional[List[Node]]:
 		logging.info(f"Joined group with Peer ID: {response.data['assigned_peer_id']}")
 		return groups[group_id]["peers"]
 	else:
-		logging.error("Failed to join group")
+		logging.error(f"Failed to join group {group_id} with error: {response.message}")
 
 
 def request_to_leave_group(leader_ip, group_id):
@@ -205,14 +208,17 @@ def request_to_leave_group(leader_ip, group_id):
 	Returns:
 	    bool: True, if success
 	"""
-	rpc_client = create_rpc_client(leader_ip)
-	response = rpc_client.leave_group(group_id, self_name)
+	_,_,leader_id,_,_ = get_group_info(group_id)
+	self_id = get_self_id(group_id)
+	rpc_client = create_rpc_client(leader_ip, node_port)
+	remote_server = rpc_client.get_proxy()
+	response = remote_server.leave_group(group_id, self_id)
 	if response.success:
 		groups[group_id] = None
 		logging.info(f"{response.message} {group_id}")
 		return True
 	else:
-		logging.errror("Failed to join group")
+		logging.error("Failed to join group")
 
 
 def is_group_leader(leader_id, self_id):
@@ -264,7 +270,7 @@ def create_group(group_name, nds_ip) -> Optional[Group]:
 
 
 @dispatcher.public
-def join_group(group_id, peer_ip, peer_name):
+def join_group(group_id, peer_name):
 	"""An server implementation that allows user to join a group.
 	This is called when client accesses the group leader.
 
@@ -276,19 +282,23 @@ def join_group(group_id, peer_ip, peer_name):
 	Returns:
 	    response: If success return data of the group.
 	"""
+
+	logging.info(f"Peer {peer_name} requesting to join group.")
 	group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
+	peer_ip = get_ip()
+
 	if not is_group_leader(leader_id, self_id):
-		return Response(success=False, message="Only leader can validate users.")
+		return Response(success=False, message="Only leader can validate users.").to_dict()
 
 	for peer in peers.values():
 		if peer["name"] == peer_name:
 			return Response(
 				success=False, message="Peer name already exists in the group."
-			)
+			).to_dict()
 		if peer["ip"] == peer_ip:
 			return Response(
 				success=False, message="Peer IP already exists in the group."
-			)
+			).to_dict()
 
 	assigned_peer_id = max(peers.keys(), default=0) + 1
 	peers[assigned_peer_id] = {"name": peer_name, "ip": peer_ip}
@@ -312,7 +322,7 @@ def join_group(group_id, peer_ip, peer_name):
 			"leader_id": leader_id,
 			"vector_clock": vector_clock,
 		},
-	)
+	).to_dict()
 
 
 @dispatcher.public
@@ -332,7 +342,7 @@ def leave_group(group_id, peer_id):
 	if not is_group_leader(leader_id, self_id):
 		return Response(success=False, message="Only leader can delete users.")
 
-	for peer_id in peers:
+	for peer_id in list(peers.keys()):
 		peers.pop(peer_id)
 		groups[group_id] = {
 			"group_name": group_name,
@@ -375,8 +385,8 @@ def message_broadcast(msg, msg_id, group_id, source_id):
 	for peer_id, peer_info in peers.items():
 		if peer_id == source_id or peer_id == self_id:
 			continue
-		peer_ip = peer_info.get("ip")
-		rpc_client = create_rpc_client(peer_ip)
+		peer_ip = peer_info.get("ip", None)
+		rpc_client = create_rpc_client(peer_ip, node_port)
 		send_message_to_peer(rpc_client, msg, msg_id, group_id, source_id, peer_id)
 
 
@@ -393,7 +403,7 @@ def send_message(msg, group_id):
 	leader_ip = peers[leader_id].get("ip", None)
 	msg_id = str(uuid.uuid4())
 	if leader_ip:
-		rpc_client = create_rpc_client(leader_ip)
+		rpc_client = create_rpc_client(leader_ip, node_port)
 		return send_message_to_peer(rpc_client, msg, msg_id, group_id)
 	else:
 		logging.error(
