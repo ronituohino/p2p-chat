@@ -48,7 +48,7 @@ class NDSResponse:
 	Attributes
 	----------
 	response : dict
-	    The entire response dictionary from NDS.
+		The entire response dictionary from NDS.
 	"""
 
 	response: dict
@@ -66,26 +66,39 @@ class NDSResponse:
 		return self.response.get("data", {})
 
 
-class Response:
+class Response(dict):
 	"""
-	A class for transforming dict type data received from NDS.
+	Represents a response object.
 
 	Attributes
 	----------
-	response : dict
-	    The entire response dictionary.
+	success : bool
+		Indicates whether the response was successful or not.
+	message : str
+		The message associated with the response.
+	data : dict
+		The data associated with the response.
+
+	Methods
+	-------
+		to_dict(): Converts the Response object to a dictionary.
 	"""
 
-	response: dict
+	def __init__(self, success=None, message=None, data=None):
+		super().__init__(success=success, message=message, data=data)
+		self.success = success
+		self.message = message
+		self.data = data
 
-	@property
-	def success(self) -> bool:
-		return self.response.get("success", False)
+	def __getattr__(self, item):
+		try:
+			return self[item]
+		except KeyError:
+			raise AttributeError(f"'Response' object has no attribute '{item}'")
 
-	@property
-	def message(self) -> str:
-		return self.response.get("message", "")
+	def __setattr__(self, key, value):
+		self[key] = value
+		super().__setattr__(key, value)
 
-	@property
-	def data(self) -> dict:
-		return self.response.get("data", {})
+	def __repr__(self):
+		return f"Response(success={self.success}, message='{self.message}', data={self.data})"
