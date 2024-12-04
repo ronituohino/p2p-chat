@@ -49,7 +49,7 @@ class Networks(Static):
 		peers = await self.app.net.join_group(group.group_id, group.leader_ip)
 		if peers:
 			for _, peer_dict in peers.items():
-				group_node.add_leaf(peer_dict.name)
+				group_node.add_leaf(peer_dict["name"])
 		self.app.chat.set_active_group(group)
 
 	async def leave_group(self, group_node, group: Group):
