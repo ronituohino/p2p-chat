@@ -147,7 +147,8 @@ def fetch_groups(nds_ip) -> List[Group]:
 	"""Returns all possible groups to join"""
 	nds = nds_servers.get(nds_ip)
 	remote_server = nds.get_proxy()
-	response = Response(remote_server.get_groups())
+	response_dict = remote_server.get_groups()
+	response = Response(**response_dict)
 	if response.success:
 		return response.data["groups"]
 	return []
@@ -180,7 +181,8 @@ def request_to_join_group(leader_ip, group_id) -> Optional[List[Node]]:
 	rpc_client = create_rpc_client(leader_ip, node_port)
 	# This is request to leader
 	remote_server = rpc_client.get_proxy()
-	response = Response(remote_server.join_group(group_id, self_name))
+	response_dict = remote_server.join_group(group_id, self_name)
+	response = Response(**response_dict)
 	if response.success:
 		groups[group_id] = {
 			"group_name": response.data["group_name"],
@@ -428,9 +430,9 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
 	"""
 	source_id = get_self_id(group_id)
 	remote_server = client.get_proxy()
-	response_dict = Response(remote_server.receive_message(
+	response_dict = remote_server.receive_message(
 		msg, msg_id, group_id, source_id, destination_id
-	))
+	)
 	response = Response(**response_dict)
 	if response.success:
 		logging.info(f"Message sent, here is response: {response.message}")
