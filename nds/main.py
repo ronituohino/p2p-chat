@@ -16,14 +16,14 @@ env = None
 
 # Custom WSGI app to handle IP extraction
 class CustomWSGITransport(WsgiServerTransport):
-	def handle(self, environ, start_response):
-		global env
-		env = environ
-		return super().handle(environ, start_response)
+    def handle(self, environ, start_response):
+        global env
+        env = environ
+        return super().handle(environ, start_response)
 
 
 def get_ip():
-	return env.get("REMOTE_ADDR", "Unknown IP")
+    return env.get("REMOTE_ADDR", "Unknown IP")
 
 
 dispatcher = RPCDispatcher()
@@ -33,123 +33,127 @@ nds_port = 50002
 
 
 class Response:
-	def __init__(self, success: bool, message: str, data=None):
-		self.success = success
-		self.message = message
-		self.data = data
+    def __init__(self, success: bool, message: str, data=None):
+        self.success = success
+        self.message = message
+        self.data = data
 
-	def __repr__(self):
-		return f"Response(success={self.success}, message='{self.message}', data={self.data})"
+    def __repr__(self):
+        return f"Response(success={self.success}, message='{self.message}', data={self.data})"
 
-	def to_dict(self):
-		return {"success": self.success, "message": self.message, "data": self.data}
+    def to_dict(self):
+        return {"success": self.success, "message": self.message, "data": self.data}
 
 
 @dispatcher.public
 def reset_database():
-	"""Reset the groups database."""
-	groups.clear()
-	groups.sync()
-	return {"success": True, "message": "Database reset successfully"}
+    """Reset the groups database."""
+    groups.clear()
+    groups.sync()
+    return {"success": True, "message": "Database reset successfully"}
 
 
 def serve(ip="0.0.0.0", port=50002, db_path="groups.db", reset_db=False):
-	global groups
-	if groups is None:
-		groups = SqliteDict(db_path, autocommit=True)
-	if reset_db:
-		groups.clear()
+    global groups
+    if groups is None:
+        groups = SqliteDict(db_path, autocommit=True)
+    if reset_db:
+        groups.clear()
 
-	groups_to_remove = []
-	for group_id, group_data in groups.items():
-		if not group_data.get("peers"):
-			groups_to_remove.append(group_id)
-	
-	for group_id in groups_to_remove:
-		groups.pop(group_id)
-		logging.info(f"Removed empty group: {group_id}")
-
-	transport = CustomWSGITransport(queue_class=gevent.queue.Queue)
-	wsgi_server = gevent.pywsgi.WSGIServer((ip, port), transport.handle)
-	gevent.spawn(wsgi_server.serve_forever)
-	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
-	logging.info(f"NDS listening at {ip} on port {port}")
-	rpc_server.serve_forever()
+    transport = CustomWSGITransport(queue_class=gevent.queue.Queue)
+    wsgi_server = gevent.pywsgi.WSGIServer((ip, port), transport.handle)
+    gevent.spawn(wsgi_server.serve_forever)
+    rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
+    logging.info(f"NDS listening at {ip} on port {port}")
+    rpc_server.serve_forever()
 
 
 @dispatcher.public
 def create_group(group_name):
-	"""Create a new chat."""
-	group_id = str(uuid.uuid4())
-	logging.info(f"Creating a group {group_name}")
+    """Create a new chat."""
+    group_id = str(uuid.uuid4())
+    logging.info(f"Creating a group {group_name}")
 
-	leader_ip = get_ip()
-	new_group = {"leader_ip": leader_ip, "group_id": group_id, "group_name": group_name}
-	groups[group_id] = new_group
+    leader_ip = get_ip()
+    new_group = {"leader_ip": leader_ip, "group_id": group_id, "group_name": group_name}
+    groups[group_id] = new_group
 
 
-	logging.info("Chat creation successful.")
-	return Response(
-		success=True, message="Chat creation successful", data=new_group
-	).to_dict()
+    logging.info("Chat creation successful.")
+    return Response(
+        success=True, message="Chat creation successful", data=new_group
+    ).to_dict()
 
 
 @dispatcher.public
 def get_groups():
-	"""Get all possible chats to join."""
-	group_list = list(groups.values())
+    """Get all possible chats to join."""
+    group_list = list(groups.values())
 
-	logging.info("Groups sent successfully.")
-	return Response(
-		success=True, message="Groups fetched successfully", data={"groups": group_list}
-	).to_dict()
+    logging.info("Groups sent successfully.")
+    return Response(
+        success=True, message="Groups fetched successfully", data={"groups": group_list}
+    ).to_dict()
 
 
 @dispatcher.public
 def update_group_leader(group_id, new_leader_ip):
-	"""Updates a leader of a network after leader election."""
-	global leader_port
-	if group_id not in groups:
-		return Response(success=False, message=f"Group {group_id} not found.").to_dict()
+    """Updates a leader of a network after leader election."""
+    global leader_port
+    if group_id not in groups:
+        return Response(success=False, message=f"Group {group_id} not found.").to_dict()
 
-	group = groups[group_id]
-	current_leader = group["leader_ip"]
-	if current_leader and liveness(current_leader, leader_port):
-		return Response(
-			success=False, message="Leader is still alive, cannot update."
-		).to_dict()
+    group = groups[group_id]
+    current_leader = group["leader_ip"]
+    if current_leader and liveness(current_leader, leader_port):
+        return Response(
+            success=False, message="Leader is still alive, cannot update."
+        ).to_dict()
 
-	group["leader_ip"] = new_leader_ip
-	groups[group_id] = group
+    group["leader_ip"] = new_leader_ip
+    groups[group_id] = group
 
-	logging.info("Leader update successful.")
-	return Response(success=True, message="Leader update successful").to_dict()
+    logging.info("Leader update successful.")
+    return Response(success=True, message="Leader update successful").to_dict()
+
+
+@dispatcher.public
+def remove_group(group_id):
+    """Remove a group of a network."""
+    if group_id in groups:
+        groups.pop(group_id)
+        logging.info(f"Group {group_id} has been removed.")
+        logging.info(f"Group {group_id} has been removed.")
+        return Response(success=True, message=f"Group {group_id} has been removed.").to_dict()
+    else:
+        logging.info(f"Group {group_id} was not found.")
+        return Response(success=True, message=f"Group {group_id} was not found.").to_dict()
 
 
 @dispatcher.public
 def get_group_leader(group_id):
-	"""Gets the current leader of a group."""
-	if group_id not in groups:
-		return Response(success=False, message=f"Group {group_id} not found.").to_dict()
-	group = groups[group_id]
-	current_leader = group["leader_ip"]
-	logging.info("Group leader sent successfully.")
-	return Response(
-		success=True,
-		message="Group leader fetched successfully",
-		data={"leader_ip": current_leader},
-	).to_dict()
+    """Gets the current leader of a group."""
+    if group_id not in groups:
+        return Response(success=False, message=f"Group {group_id} not found.").to_dict()
+    group = groups[group_id]
+    current_leader = group["leader_ip"]
+    logging.info("Group leader sent successfully.")
+    return Response(
+        success=True,
+        message="Group leader fetched successfully",
+        data={"leader_ip": current_leader},
+    ).to_dict()
 
 
 @dispatcher.public
 def liveness(ip, port):
-	"""Liveness check that a node is alive."""
-	try:
-		with socket.create_connection((ip, port), timeout=2):
-			return True
-	except (socket.error, Exception):
-		return False
+    """Liveness check that a node is alive."""
+    try:
+        with socket.create_connection((ip, port), timeout=2):
+            return True
+    except (socket.error, Exception):
+        return False
 
 
 if __name__ == "__main__":
-	serve()
+    serve()
