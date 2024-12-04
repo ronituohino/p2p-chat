@@ -216,11 +216,11 @@ def request_to_leave_group(leader_ip, group_id):
 	response_dict = remote_server.leave_group(group_id, self_id)
 	response = Response(**response_dict)
 	if response.success:
-		groups[group_id] = None
+		groups[group_id] = {}
 		logging.info(f"{response.message} {group_id}")
 		return True
 	else:
-		logging.error("Failed to join group")
+		logging.error("Failed to leave group")
 
 
 def is_group_leader(leader_id, self_id):
@@ -267,7 +267,7 @@ def create_group(group_name, nds_ip) -> Optional[Group]:
 			"peers": this_node,
 		}
 		logging.info(f"Created group {group_name} with ID: {group_id}")
-		return Group(group_name, group_id, response.data["leader_ip"], peers=this_node)
+		return Group(group_name, group_id, response.data["leader_ip"])
 	else:
 		return None
 
