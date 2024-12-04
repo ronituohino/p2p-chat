@@ -36,7 +36,7 @@ class Networks(Static):
 			group_node = nds.add(label=group.name, data=group, expand=True)
 			group_node.add_leaf("mE")
 			self.close_other_groups(group_node)
-			self.app.chat.set_active_group = group
+			self.app.chat.set_active_group(group)
 		except StopIteration:
 			self.app.notify("NDS not found!", severity="warning", timeout=3)
 
@@ -51,7 +51,7 @@ class Networks(Static):
 		group_node.add_leaf("mE")
 		for peer in peers:
 			group_node.add_leaf(peer.name)
-		self.app.chat.set_active_group = group
+		self.app.chat.set_active_group(group)
 
 	async def leave_group(self, group_node, group: Group):
 		"""Leave a group by contacting the leader, then remove peers from the tree"""
