@@ -68,8 +68,14 @@ class CreateGroup(ModalScreen):
 			chosen_index = opts.highlighted
 			nds_ip = opts.get_option_at_index(chosen_index).prompt
 			name = self.query_one("#name_input").value
+			if len(name.strip()) == 0:
+				self.app.notify(
+					"Group name cannot be empty!", severity="warning", timeout=3
+				)
+				return
 
-			created_group = await self.app.net.create_group(name, nds_ip)
+			created_group = await self.app.net.create_group(name.strip(), nds_ip)
 			self.app.networks.create_group(nds_ip, created_group)
+			self.app.notify(f"Created group {created_group.name}!", timeout=5)
 
 		self.app.pop_screen()

@@ -142,13 +142,13 @@ def get_self_id(group_id):
 
 
 @dispatcher.public
-def fetch_groups(nds_ip):
+def fetch_groups(nds_ip) -> List[Group]:
 	"""Returns all possible groups to join"""
 	nds = nds_servers.get(nds_ip)
 	remote_server = nds.get_proxy()
-	response = remote_server.get_groups()
-	if response["success"]:
-		return response["data"]["groups"]
+	response = NDSResponse(remote_server.get_groups())
+	if response.success:
+		return response.data["groups"]
 	return []
 
 
