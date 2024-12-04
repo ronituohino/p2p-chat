@@ -41,7 +41,7 @@ class Node:
 
 
 @dataclass
-class NDSResponse:
+class Response:
 	"""
 	A class for transforming dict type data received from NDS.
 
@@ -64,33 +64,3 @@ class NDSResponse:
 	@property
 	def data(self) -> dict:
 		return self.response.get("data", {})
-
-
-class Response:
-	"""
-	Represents a response object.
-
-	Attributes
-	----------
-	success : bool
-		Indicates whether the response was successful or not.
-	message : str
-		The message associated with the response.
-	data : dict
-	    The data associated with the response.
-
-	Methods
-	-------
-		to_dict(): Converts the Response object to a dictionary.
-	"""
-
-	def __init__(self, success=None, message=None, data=None):
-		self.success = success
-		self.message = message
-		self.data = data
-
-	def __repr__(self):
-		return f"Response(success={self.success}, message='{self.message}', data={self.data})"
-
-	def to_dict(self):
-		return {"success": self.success, "message": self.message, "data": self.data}

@@ -12,7 +12,7 @@ from tinyrpc.transports.http import HttpPostClientTransport
 from tinyrpc import RPCClient
 from typing import Optional, List
 from sqlitedict import SqliteDict
-from structs import Group, Node, NDSResponse, Response
+from structs import Group, Node, Response
 
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
@@ -147,7 +147,7 @@ def fetch_groups(nds_ip) -> List[Group]:
 	"""Returns all possible groups to join"""
 	nds = nds_servers.get(nds_ip)
 	remote_server = nds.get_proxy()
-	response = NDSResponse(remote_server.get_groups())
+	response = Response(remote_server.get_groups())
 	if response.success:
 		return response.data["groups"]
 	return []
@@ -180,7 +180,7 @@ def request_to_join_group(leader_ip, group_id) -> Optional[List[Node]]:
 	rpc_client = create_rpc_client(leader_ip, node_port)
 	# This is request to leader
 	remote_server = rpc_client.get_proxy()
-	response = remote_server.join_group(group_id, self_name)
+	response = Response(remote_server.join_group(group_id, self_name))
 	if response.success:
 		groups[group_id] = {
 			"group_name": response.data["group_name"],
@@ -210,7 +210,7 @@ def request_to_leave_group(leader_ip, group_id):
 	self_id = get_self_id(group_id)
 	rpc_client = create_rpc_client(leader_ip, node_port)
 	remote_server = rpc_client.get_proxy()
-	response = remote_server.leave_group(group_id, self_id)
+	response = Response(remote_server.leave_group(group_id, self_id))
 	if response.success:
 		groups[group_id] = None
 		logging.info(f"{response.message} {group_id}")
@@ -250,7 +250,7 @@ def create_group(group_name, nds_ip) -> Optional[Group]:
 		raise ValueError("Group name cannot be empty")
 
 	remote_server = rpc_client.get_proxy()
-	response = NDSResponse(remote_server.create_group(group_name=group_name))
+	response = Response(remote_server.create_group(group_name=group_name))
 
 	if response.success:
 		group_id = response.data["group_id"]
@@ -343,7 +343,7 @@ def leave_group(group_id, peer_id):
 
 	group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
 	if not is_group_leader(leader_id, self_id):
-		return Response(success=False, message="Only leader can delete users.")
+		return Response(success=False, message="Only leader can delete users.").to_dict()
 
 	for peer_id in list(peers.keys()):
 		peers.pop(peer_id)
@@ -355,8 +355,8 @@ def leave_group(group_id, peer_id):
 			"peers": peers,
 		}
 		logging.info(f"Peer {peer_id} left the group")
-		return Response(success=True, message="Successfully left the group")
-	return Response(success=False, message="Peer not found")
+		return Response(success=True, message="Successfully left the group").to_dict()
+	return Response(success=False, message="Peer not found").to_dict()
 
 
 def message_broadcast(msg, msg_id, group_id, source_id):
@@ -427,9 +427,9 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
 	"""
 	source_id = get_self_id(group_id)
 	remote_server = client.get_proxy()
-	response = remote_server.receive_message(
+	response = Response(remote_server.receive_message(
 		msg, msg_id, group_id, source_id, destination_id
-	)
+	))
 	if response.success:
 		logging.info(f"Message sent, here is response: {response.message}")
 	else:
@@ -455,7 +455,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 	_, self_id, leader_id, _, _ = get_group_info(group_id)
 
 	if msg_id in received_messages:
-		return Response(success=True, message="Duplicate message")
+		return Response(success=True, message="Duplicate message").to_dict()
 
 	if destination_id == self_id:
 		received_messages.add(msg_id)
@@ -464,7 +464,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 		peer_name = peer["name"]
 		networking.receive_messages(source_name=peer_name, msg=msg)
 		store_message(msg, msg_id, group_id, source_id)
-		return Response(success=True, message="Message received")
+		return Response(success=True, message="Message received").to_dict()
 	elif self_id == leader_id:
 		received_messages.add(msg_id)
 		peers = get_group_peers(group_id=group_id)
@@ -475,7 +475,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 	else:
 		return Response(
 			success=False, message="Error message sent to incorrect location."
-		)
+		).to_dict()
 
 
 def liveness(ip, port):
