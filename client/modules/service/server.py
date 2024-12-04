@@ -461,7 +461,6 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 		)
 
 
-@dispatcher.public
 def liveness(ip, port):
 	"""Liveness check that a node is alive."""
 	try:
