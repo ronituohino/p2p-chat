@@ -41,7 +41,7 @@ class Node:
 
 
 @dataclass
-class Response:
+class NDSResponse:
 	"""
 	A class for transforming dict type data received from NDS.
 
@@ -49,6 +49,31 @@ class Response:
 	----------
 	response : dict
 	    The entire response dictionary from NDS.
+	"""
+
+	response: dict
+
+	@property
+	def success(self) -> bool:
+		return self.response.get("success", False)
+
+	@property
+	def message(self) -> str:
+		return self.response.get("message", "")
+
+	@property
+	def data(self) -> dict:
+		return self.response.get("data", {})
+
+
+class Response:
+	"""
+	A class for transforming dict type data received from NDS.
+
+	Attributes
+	----------
+	response : dict
+	    The entire response dictionary.
 	"""
 
 	response: dict
