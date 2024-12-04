@@ -304,6 +304,7 @@ def join_group(group_id, peer_name):
 
 		assigned_peer_id = max(peers.keys(), default=0) + 1
 		peers[assigned_peer_id] = {"name": peer_name, "ip": peer_ip}
+
 		groups[group_id] = {
 			"group_name": group_name,
 			"self_id": self_id,
@@ -312,8 +313,9 @@ def join_group(group_id, peer_name):
 			"vector_clock": vector_clock,
 		}
 
-		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 
+		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
+		group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
 		return Response(
 			success=True,
 			message="Joined a group successfully",
