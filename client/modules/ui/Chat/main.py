@@ -1,5 +1,6 @@
 from textual.app import ComposeResult
 from textual.widgets import Input, Static, RichLog
+from structs import Group
 
 banner = """
   ██████╗ ██████╗ ██████╗        ██████╗██╗  ██╗ █████╗ ████████╗
@@ -31,10 +32,21 @@ class Chat(Static):
 	}
 	"""
 
+	def __init__(self):
+		super().__init__()
+		self.chat_log = None
+		self.active_group: None | Group = None
+
+	def set_active_group(self, group: Group):
+		print("active group set")
+		self.chat_log.clear()
+		self.active_group = group
+
 	def write(self, msg: str):
-		self.query_one(RichLog).write(msg, width=66)
+		self.chat_log.write(msg, width=66)
 
 	def on_mount(self):
+		self.chat_log = self.query_one(RichLog)
 		self.write(banner)
 
 	def on_input_submitted(self, event: Input.Submitted):

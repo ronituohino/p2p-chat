@@ -63,7 +63,7 @@ class AddDiscoverySource(ModalScreen):
 					f"Could not add NDS with IP: {nds_ip}!", severity="error", timeout=5
 				)
 				return
-			self.app.networks.add_groups(nds_ip, groups)
+			self.app.networks.add_nds(nds_ip, groups)
 			self.app.networks.refresh_networks()
 			self.app.notify(f"Added NDS: {nds_ip}", timeout=5)
 		self.app.pop_screen()

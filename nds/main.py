@@ -11,9 +11,10 @@ from sqlitedict import SqliteDict
 
 
 dispatcher = RPCDispatcher()
-groups=None
+groups = None
 leader_port = 50001
 nds_port = 50002
+
 
 class Response:
 	def __init__(self, success: bool, message: str, data=None):
@@ -25,11 +26,7 @@ class Response:
 		return f"Response(success={self.success}, message='{self.message}', data={self.data})"
 
 	def to_dict(self):
-		return {
-			"success": self.success,
-			"message": self.message,
-			"data": self.data,
-		}
+		return {"success": self.success, "message": self.message, "data": self.data}
 
 
 @dispatcher.public
@@ -42,15 +39,16 @@ def reset_database():
 
 def serve(ip="0.0.0.0", port=50002, db_path="groups.db", reset_db=False):
 	global groups
-	if groups is None: 
+	if groups is None:
 		groups = SqliteDict(db_path, autocommit=True)
 	if reset_db:
-		groups.clear()  
+		groups.clear()
 
 	transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
 	wsgi_server = gevent.pywsgi.WSGIServer((ip, port), transport.handle)
 	gevent.spawn(wsgi_server.serve_forever)
 	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
+	print(f"NDS listening at {ip} on port {port}")
 	rpc_server.serve_forever()
 
 
@@ -62,17 +60,21 @@ def create_group(leader_ip, group_name):
 	groups[group_id] = {
 		"leader_ip": leader_ip,
 		"group_id": group_id,
-		"group_name": group_name
+		"group_name": group_name,
 	}
 	print(f"Group creation successful.")
-	return Response(success=True, message="Chat creation successful", data={"group_id": group_id}).to_dict()
+	return Response(
+		success=True, message="Chat creation successful", data={"group_id": group_id}
+	).to_dict()
 
 
 @dispatcher.public
 def get_groups():
 	"""Get all possible chats to join."""
 	group_list = list(groups.values())
-	return Response(success=True, message="Groups fetched successfully", data={"groups": group_list}).to_dict()
+	return Response(
+		success=True, message="Groups fetched successfully", data={"groups": group_list}
+	).to_dict()
 
 
 @dispatcher.public
@@ -81,12 +83,14 @@ def update_group_leader(group_id, new_leader_ip):
 	global leader_port
 	if group_id not in groups:
 		return Response(success=False, message=f"Group {group_id} not found.").to_dict()
-	
+
 	group = groups[group_id]
 	current_leader = group["leader_ip"]
 	if current_leader and liveness(current_leader, leader_port):
-		return Response(success=False, message="Leader is still alive, cannot update.").to_dict()
-	
+		return Response(
+			success=False, message="Leader is still alive, cannot update."
+		).to_dict()
+
 	group["leader_ip"] = new_leader_ip
 	groups[group_id] = group
 	return Response(success=True, message="Leader update successful").to_dict()
@@ -99,7 +103,11 @@ def get_group_leader(group_id):
 		return Response(success=False, message=f"Group {group_id} not found.").to_dict()
 	group = groups[group_id]
 	current_leader = group["leader_ip"]
-	return Response(success=True, message="Group leader fetched successfully", data={"leader_ip": current_leader}).to_dict()
+	return Response(
+		success=True,
+		message="Group leader fetched successfully",
+		data={"leader_ip": current_leader},
+	).to_dict()
 
 
 @dispatcher.public
@@ -110,7 +118,6 @@ def liveness(ip, port):
 			return True
 	except (socket.error, Exception):
 		return False
-
 
 
 if __name__ == "__main__":

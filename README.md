@@ -21,6 +21,9 @@ These can be connected via SSH.
 The NDS needs to be on one of the computers, and clients can be run remotely as
 well.
 
+The VM connection only works through certain Wi-Fi points, at least _eduroam_
+works.
+
 To connect to a faculty VM
 
 ```
@@ -105,6 +108,12 @@ cd client
 uv run main.py
 ```
 
+### Note about using the VMs
+
+If you set up the NDS on a VM, to connect to it from your own laptop, you have
+to use a proxy. We don't really know how to do it well, so it's recommended that
+you SSH into another VM and use a client from there.
+
 ## Development
 
 Code is formatted and linted using [ruff](https://docs.astral.sh/ruff/). VS Code
@@ -127,7 +136,8 @@ can also be run on the browser, which is quite amazing.
 After launching the dev console, start the ui itself in a separate terminal
 
 ```
-uvx --from textual-dev textual run --dev --port 7654 ./client/ui.py
+cd client
+uvx --from textual-dev textual run --dev --port 7654 ui.py
 ```
 
 `print()` statements will be logged on the dev console with this setup.
