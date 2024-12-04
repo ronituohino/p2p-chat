@@ -18,10 +18,10 @@ from structs import Group, Node, NDSResponse, Response
 dispatcher = RPCDispatcher()
 self_ip = None
 self_name = None
+nds_port = 50002
 nds_servers = SqliteDict("discovery_server.db", autocommit=True)
 groups = SqliteDict("groups.db", autocommit=True)
 message_store = SqliteDict("messages.db", autocommit=True)
-clients = []
 received_messages = set()
 networking = None
 
@@ -52,10 +52,6 @@ def serve(port=50001, net=None, node_name=None, node_ip="127.0.0.1"):
 	set_name(node_name)
 	global networking
 	networking = net
-	if not networking:
-		gevent.sleep(1)
-	else:
-		net.receive_message("bot", "hi")
 
 	transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
 	wsgi_server = gevent.pywsgi.WSGIServer((node_ip, port), transport.handle)
@@ -64,9 +60,9 @@ def serve(port=50001, net=None, node_name=None, node_ip="127.0.0.1"):
 	rpc_server.serve_forever()
 
 
-def create_rpc_client(peer_ip, peer_port=50001):
+def create_rpc_client(ip, port):
 	rpc_client = RPCClient(
-		JSONRPCProtocol(), HttpPostClientTransport(f"http://{peer_ip}:{peer_port}/")
+		JSONRPCProtocol(), HttpPostClientTransport(f"http://{ip}:{port}/")
 	)
 	return rpc_client
 
@@ -161,7 +157,7 @@ def add_node_discovery_source(nds_ip) -> bool:
 	Returns:
 	    bool: True, indicates success
 	"""
-	rpc_client = create_rpc_client(nds_ip)
+	rpc_client = create_rpc_client(ip=nds_ip, port=nds_port)
 	nds_servers[nds_ip] = rpc_client
 	return True
 

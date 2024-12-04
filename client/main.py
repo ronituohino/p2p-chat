@@ -71,7 +71,7 @@ class Networking:
 def main():
 	net = Networking()
 	app = ChatApp(
-		net=net, serve=serve, port=50001, node_name="node", node_ip="127.0.0.1"
+		net=net, serve=serve, port=50001, node_name="node", node_ip="0.0.0.0"
 	)
 	app.run()
 

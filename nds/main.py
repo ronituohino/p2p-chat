@@ -13,6 +13,7 @@ from sqlitedict import SqliteDict
 dispatcher = RPCDispatcher()
 groups=None
 leader_port = 50001
+nds_port = 50002
 
 class Response:
 	def __init__(self, success: bool, message: str, data=None):
@@ -39,7 +40,7 @@ def reset_database():
 	return {"success": True, "message": "Database reset successfully"}
 
 
-def serve(ip="127.0.0.1", port=50001, db_path="groups.db", reset_db=False):
+def serve(ip="0.0.0.0", port=50002, db_path="groups.db", reset_db=False):
 	global groups
 	if groups is None: 
 		groups = SqliteDict(db_path, autocommit=True)
