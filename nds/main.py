@@ -97,9 +97,10 @@ def get_groups():
 
 
 @dispatcher.public
-def update_group_leader(group_id, new_leader_ip):
+def update_group_leader(group_id):
     """Updates a leader of a network after leader election."""
     global leader_port
+    new_leader_ip = get_ip()
     if group_id not in groups:
         return Response(success=False, message=f"Group {group_id} not found.").to_dict()
 
@@ -107,7 +108,7 @@ def update_group_leader(group_id, new_leader_ip):
     current_leader = group["leader_ip"]
     if current_leader and liveness(current_leader, leader_port):
         return Response(
-            success=False, message="Leader is still alive, cannot update."
+            success=False, message="Leader is still alive, cannot update.", data={"leader_ip": current_leader}
         ).to_dict()
 
     group["leader_ip"] = new_leader_ip

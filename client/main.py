@@ -8,6 +8,7 @@ from modules.service.server import (
 	create_group,
 	request_to_join_group,
 	request_to_leave_group,
+	send_message
 )
 import sys
 
@@ -59,9 +60,11 @@ class Networking:
 	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
 	async def leave_group(self, group_id, leader_ip) -> None:
 		request_to_leave_group(leader_ip, group_id)
+		
 
-	async def send_message(self, group_id):
-		pass
+	# TODOOO!!!
+	async def send_message(self, msg, group_id):
+		send_message(msg, group_id)
 
 	# Called when a message needs to be added to local display
 	def receive_message(self, source_name, msg) -> None:
