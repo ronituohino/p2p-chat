@@ -12,9 +12,14 @@ from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
 from tinyrpc.transports.http import HttpPostClientTransport
 from tinyrpc import RPCClient
-from typing import Optional
 
-from structs.client import Group, Node, Message, JoinGroupResponse
+from structs.client import (
+	Group,
+	Node,
+	Message,
+	JoinGroupResponse,
+	ReceiveMessageResponse,
+)
 from structs.generic import Response
 from structs.nds import FetchGroupResponse, CreateGroupResponse
 
@@ -50,6 +55,8 @@ nds_servers: dict[str, RPCClient] = {}  # key is nds_ip
 groups: dict[str, Group] = {}  # key is group_id
 message_store: dict[str, Message] = {}  # key is group_id
 received_messages = set()
+
+### SERVER STARTUP, CONNECTIONS, NDS ADDITION
 
 
 def serve(net=None, node_name=None):
@@ -95,6 +102,9 @@ def add_node_discovery_source(nds_ip):
 	except BaseException as e:
 		logging.error(f"EXC: Failed to add NDS {e}")
 		return None
+
+
+### GROUP JOINING / LEAVING
 
 
 def create_group(group_name, nds_ip) -> Group | None:
@@ -187,15 +197,11 @@ def request_to_join_group(leader_ip, group_id) -> list[Node] | None:
 		if response.ok:
 			response.group.self_id = response.assigned_peer_id
 			groups[group_id] = response.group
-			logging.info(f"Joined group with Peer ID: {response.assigned_peer_id}")
 			logging.info(f"Joined group: {response.group}")
 			# threading.Thread(
 			# target=send_heartbeat_to_leader, args=(group_id,), daemon=True
 			# ).start()
 			# synchronize_with_leader(group_id)
-			logging.info(
-				f"Returning other peers: {list(response.group.peers.values())}"
-			)
 			return list(response.group.peers.values())
 		else:
 			logging.error(
@@ -256,6 +262,146 @@ def join_group(group_id, peer_name):
 		return Response(success=False, message="An unexpected error occurred.")
 
 
+### THE THINGS ABOVE WORK NOW
+
+
+def send_message(msg, group_id):
+	"""Send a message to be broadcasted by leader.
+	Args:
+		msg (str): the message.
+		group_id (str): UID of the group.
+	"""
+	group = groups[group_id]
+	leader_ip = group.peers[group.leader_id].ip
+	msg_id = str(uuid.uuid4())
+
+	if leader_ip:
+		rpc_client = create_rpc_client(leader_ip, node_port)
+		return send_message_to_peer(
+			client=rpc_client, msg=msg, msg_id=msg_id, group_id=group_id
+		)
+	else:
+		logging.error(
+			f"IP addr. for leader {leader_ip} in group {group_id} does not exist"
+		)
+
+
+def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
+	"""Send a message to individual targeted peer.
+
+	Args:
+		client (object): The rpc_client to the peer.
+		msg (str): the message.
+		msg_id (str): ID of the message.
+		group_id (str): UID of the group.
+		source_id (str): ID of the source peer.
+		destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
+	"""
+	source_id = get_self_id(group_id)
+	remote_server = client.get_proxy()
+	response = ReceiveMessageResponse(
+		munchify(
+			remote_server.receive_message(
+				msg, msg_id, group_id, source_id, destination_id
+			)
+		)
+	)
+	if response.ok:
+		logging.info(f"Message sent, here is response: {response.message}")
+	else:
+		logging.info(f"Failed to send message: {response.message}")
+
+
+@dispatcher.public
+def receive_message(msg, msg_id, group_id, source_id, destination_id):
+	"""Handle receiving a message from peer.
+	If message is meant for current node, then it will store it, otherwise it will
+	broadcast it forward.
+
+	Args:
+		msg (str): the message.
+		msg_id (str): ID of the message.
+		group_id (str): UID of the group.
+		source_id (str): ID of the source peer.
+		destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
+
+	Returns:
+		response: success / fail
+	"""
+	group = groups[group_id]
+
+	if msg_id in received_messages:
+		return ReceiveMessageResponse(ok=True, message="Duplicate message.")
+
+	# if vector_clock > current_vector_clock + 1:
+	# logging.warning("Detected missing messages. Initiating synchronization.")
+	# synchronize_with_leader(group_id)
+
+	# current_vector_clock = max(current_vector_clock, vector_clock) + 1
+	# update_group_info(
+	# group_id=group_id,
+	# group_name=group_name,
+	# self_id=self_id,
+	# leader_id=leader_id,
+	# vector_clock=current_vector_clock,
+	# peers=peers,
+	# )
+
+	peer = group.peers.get(source_id, None)
+	peer_name = peer.get("name", "Unknown")
+
+	if destination_id == group.self_id:
+		received_messages.add(msg_id)
+		networking.receive_message(source_name=peer_name, msg=msg)
+		# store_message(msg, msg_id, group_id, source_id, 0)
+		return ReceiveMessageResponse(ok=True, message="Message received.")
+	elif group.self_id == group.leader_id:
+		received_messages.add(msg_id)
+		networking.receive_message(source_name=peer_name, msg=msg)
+		# store_message(msg, msg_id, group_id, source_id, 0)
+		message_broadcast(msg, msg_id, group_id, source_id, destination_id)
+	else:
+		return ReceiveMessageResponse(
+			success=False, message="Error message sent to incorrect location."
+		)
+
+
+def message_broadcast(msg, msg_id, group_id, source_id):
+	"""A message broadcasts.
+
+	Args:
+		msg (str): A message that user want to send.
+		group_id (str): UID of the group.
+		source_id (str): Peer ID where the message came from.
+	"""
+	group = groups[group_id]
+	peers = list(group.peers.values())
+	other_peers = []
+	for p in peers:
+		if p.node_id != source_id and p.node_id != group.self_id:
+			other_peers.append(p)
+
+	if len(other_peers) < 1:
+		logging.info(f"No other peers found for group {group_id}.")
+		return
+
+	# vector_clock += 1
+	# msg = (vector_clock, msg)
+	# update_group_info(
+	# group_id=group_id,
+	# group_name=group_name,
+	# self_id=self_id,
+	# leader_id=leader_id,
+	# vector_clock=vector_clock,
+	# peers=peers,
+	# )
+
+	logging.info(f"Broadcasting message to peers: {peers}")
+	for peer in other_peers:
+		rpc_client = create_rpc_client(peer.ip, node_port)
+		send_message_to_peer(rpc_client, msg, msg_id, group_id, source_id, peer.node_id)
+
+
 def store_message(msg, msg_id, group_id, source_id, vector_clock):
 	"""Store a message locally."""
 	if group_id not in message_store:
@@ -270,6 +416,9 @@ def store_message(msg, msg_id, group_id, source_id, vector_clock):
 		}
 	)
 	message_store[group_id] = messages
+
+
+### IM WORKING ON THE THINGS BETWEEN
 
 
 def get_messages(group_id):
@@ -580,140 +729,6 @@ def update_peers(group_id, updated_peers):
 		return Response(success=True, message="Peer list has been updated.")
 	else:
 		return Response(success=False, message="Group not found.")
-
-
-def message_broadcast(msg, msg_id, group_id, source_id):
-	"""A message broadcasts.
-
-	Args:
-		msg (str): A message that user want to send.
-		group_id (str): UID of the group.
-		source_id (str): Peer ID where the message came from.
-	"""
-	group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
-	if not peers:
-		logging.info(f"No peers found for group {group_id}.")
-		return
-
-	vector_clock += 1
-	msg = (vector_clock, msg)
-	update_group_info(
-		group_id=group_id,
-		group_name=group_name,
-		self_id=self_id,
-		leader_id=leader_id,
-		vector_clock=vector_clock,
-		peers=peers,
-	)
-
-	logging.info(f"Broadcasting message to peers: {peers}")
-	for peer_id, peer_info in peers.items():
-		if peer_id == source_id or peer_id == self_id:
-			continue
-		peer_ip = peer_info.get("ip", None)
-		rpc_client = create_rpc_client(peer_ip, node_port)
-		send_message_to_peer(rpc_client, msg, msg_id, group_id, source_id, peer_id)
-
-
-def send_message(msg, group_id):
-	"""Send a message to be broadcasted by leader.
-	Args:
-		client (object): The rpc_client to the peer.
-		msg (str): the message.
-		msg_id (str): ID of the message.
-		group_id (str): UID of the group.
-		source_id (str): ID of the source peer.
-	"""
-	_, _, leader_id, _, peers = get_group_info(group_id)
-	leader_ip = peers[leader_id].get("ip", None)
-	msg_id = str(uuid.uuid4())
-	if leader_ip:
-		rpc_client = create_rpc_client(leader_ip, node_port)
-		return send_message_to_peer(rpc_client, msg, msg_id, group_id)
-	else:
-		logging.error(
-			f"IP addr. for leader {leader_ip} in group {group_id} does not exist"
-		)
-
-
-def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
-	"""Send a message to individual targeted peer.
-
-	Args:
-		client (object): The rpc_client to the peer.
-		msg (str): the message.
-		msg_id (str): ID of the message.
-		group_id (str): UID of the group.
-		source_id (str): ID of the source peer.
-		destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
-	"""
-	source_id = get_self_id(group_id)
-	remote_server = client.get_proxy()
-	response_dict = remote_server.receive_message(
-		msg, msg_id, group_id, source_id, destination_id
-	)
-	response = Response(**response_dict)
-	if response.success:
-		logging.info(f"Message sent, here is response: {response.message}")
-	else:
-		logging.info(f"Failed to send message: {response.message}")
-
-
-@dispatcher.public
-def receive_message(msg_with_clock, msg_id, group_id, source_id, destination_id):
-	"""Handle receiving a message from peer.
-	If message is meant for current node, then it will store it, otherwise it will
-	broadcast it forward.
-
-	Args:
-		msg (str): the message.
-		msg_id (str): ID of the message.
-		group_id (str): UID of the group.
-		source_id (str): ID of the source peer.
-		destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
-
-	Returns:
-		response: success / fail
-	"""
-	vector_clock, msg = msg_with_clock
-	group_name, self_id, leader_id, current_vector_clock, peers = get_group_info(
-		group_id
-	)
-
-	if msg_id in received_messages:
-		return Response(success=True, message="Duplicate message")
-
-	if vector_clock > current_vector_clock + 1:
-		logging.warning("Detected missing messages. Initiating synchronization.")
-		synchronize_with_leader(group_id)
-
-	current_vector_clock = max(current_vector_clock, vector_clock) + 1
-	update_group_info(
-		group_id=group_id,
-		group_name=group_name,
-		self_id=self_id,
-		leader_id=leader_id,
-		vector_clock=current_vector_clock,
-		peers=peers,
-	)
-
-	peer = peers.get(source_id, None)
-	peer_name = peer.get("name", "Unknown")
-
-	if destination_id == self_id:
-		received_messages.add(msg_id)
-		networking.receive_messages(source_name=peer_name, msg=msg)
-		store_message(msg, msg_id, group_id, source_id, vector_clock)
-		return Response(success=True, message="Message received")
-	elif self_id == leader_id:
-		received_messages.add(msg_id)
-		networking.receive_messages(source_name=peer_name, msg=msg)
-		store_message(msg, msg_id, group_id, source_id, vector_clock)
-		message_broadcast(msg_with_clock, msg_id, group_id, source_id, destination_id)
-	else:
-		return Response(
-			success=False, message="Error message sent to incorrect location."
-		)
 
 
 if __name__ == "__main__":

@@ -88,3 +88,7 @@ class Message(Munch):
 class JoinGroupResponse(Response):
 	assigned_peer_id: int
 	group: Group
+
+
+class ReceiveMessageResponse(Response):
+	pass
