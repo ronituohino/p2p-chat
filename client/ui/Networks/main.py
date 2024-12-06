@@ -38,7 +38,7 @@ class Networks(Static):
 			nds = next(nds for nds in tree.root.children if nds.label.plain == nds_ip)
 			group_node = nds.add(label=group.name, data=group, expand=True)
 			self.close_other_groups(group_node)
-			self.add_peers(group_node, group.peers)
+			self.add_peers(group_node, list(group.peers.values()))
 			self.app.chat.set_active_group(group)
 		except StopIteration:
 			self.app.notify("NDS not found!", severity="warning", timeout=3)
