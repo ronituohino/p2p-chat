@@ -277,6 +277,9 @@ def send_message(msg):
 	"""
 
 	active = get_active_group()
+	if not active:
+		return
+
 	leader_ip = active.peers[active.leader_id].ip
 	msg_id = str(uuid.uuid4())
 
