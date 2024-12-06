@@ -91,7 +91,7 @@ def add_node_discovery_source(nds_ip):
 
 	try:
 		nds = rpc_client.get_proxy()
-		response = FetchGroupResponse.from_json(nds.get_groups())
+		response: FetchGroupResponse = FetchGroupResponse.from_json(nds.get_groups())
 		if response.ok:
 			return response.groups
 		else:
@@ -125,7 +125,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 
 	try:
 		nds = rpc_client.get_proxy()
-		response = CreateGroupResponse.from_json(
+		response: CreateGroupResponse = CreateGroupResponse.from_json(
 			nds.create_group(group_name=group_name)
 		)
 
@@ -191,7 +191,9 @@ def request_to_join_group(leader_ip, group_id) -> list[Node] | None:
 	# This is request to leader
 	try:
 		leader = rpc_client.get_proxy()
-		response = JoinGroupResponse.from_json(leader.join_group(group_id, self_name))
+		response: JoinGroupResponse = JoinGroupResponse.from_json(
+			leader.join_group(group_id, self_name)
+		)
 		if response.ok:
 			response.group.self_id = response.assigned_peer_id
 			groups[group_id] = response.group
@@ -231,18 +233,17 @@ def join_group(group_id, peer_name):
 
 		if group.leader_id != group.self_id:
 			return JoinGroupResponse(
-				ok=False,
-				message="I am not the leader of that group, and I can't accept the request.",
+				ok=False, message="not-leader", assigned_peer_id=0, group=None
 			).to_json()
 
 		for peer in group.peers.values():
 			if peer.name == peer_name:
 				return JoinGroupResponse(
-					ok=False, message="You are already in this group."
+					ok=False, message="already-in-group", assigned_peer_id=0, group=None
 				).to_json()
 			if peer.ip == peer_ip:
 				return JoinGroupResponse(
-					ok=False, message="Someone has the same IP as you in this group."
+					ok=False, message="ip-taken", assigned_peer_id=0, group=None
 				).to_json()
 
 		assigned_peer_id = max(group.peers.keys(), default=0) + 1
@@ -253,12 +254,12 @@ def join_group(group_id, peer_name):
 		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 
 		return JoinGroupResponse(
-			ok=True, group=group, assigned_peer_id=assigned_peer_id
+			ok=True, message="ok", group=group, assigned_peer_id=assigned_peer_id
 		).to_json()
 	except Exception as e:
 		logging.error(f"Error in join_group: {e}")
 		return JoinGroupResponse(
-			ok=False, message="An unexpected error occurred."
+			ok=False, message="error", group=None, assigned_peer_id=0
 		).to_json()
 
 
@@ -304,7 +305,7 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
 	"""
 	source_id = get_self_id(group_id)
 	remote_server = client.get_proxy()
-	response = ReceiveMessageResponse.from_json(
+	response: ReceiveMessageResponse = ReceiveMessageResponse.from_json(
 		remote_server.receive_message(msg, msg_id, group_id, source_id, destination_id)
 	)
 	if response.ok:
@@ -332,7 +333,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 	group = groups[group_id]
 
 	if msg_id in received_messages:
-		return ReceiveMessageResponse(ok=True, message="Duplicate message.").to_json()
+		return ReceiveMessageResponse(ok=True, message="duplicate").to_json()
 
 	# if vector_clock > current_vector_clock + 1:
 	# logging.warning("Detected missing messages. Initiating synchronization.")
@@ -355,7 +356,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 		received_messages.add(msg_id)
 		networking.receive_message(source_name=peer_name, msg=msg)
 		# store_message(msg, msg_id, group_id, source_id, 0)
-		return ReceiveMessageResponse(ok=True, message="Message received.").to_json()
+		return ReceiveMessageResponse(ok=True, message="ok").to_json()
 	elif group.self_id == group.leader_id:
 		received_messages.add(msg_id)
 		networking.receive_message(source_name=peer_name, msg=msg)
@@ -363,7 +364,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 		message_broadcast(msg, msg_id, group_id, source_id, destination_id)
 	else:
 		return ReceiveMessageResponse(
-			success=False, message="Error message sent to incorrect location."
+			ok=False, message="error-wrong-destination"
 		).to_json()
 
 

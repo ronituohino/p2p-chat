@@ -53,7 +53,7 @@ def get_groups():
 	"""Return a list of all possible Groups to join."""
 	group_list = list(groups.values())
 	logging.info(f"Groups sent: {group_list}")
-	return FetchGroupResponse(ok=True, message="OK", groups=group_list).to_json()
+	return FetchGroupResponse(ok=True, groups=group_list).to_json()
 
 
 @dispatcher.public

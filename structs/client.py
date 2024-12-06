@@ -97,6 +97,7 @@ class Message:
 @dataclass
 class JoinGroupResponse(Response):
 	assigned_peer_id: int
+	message: str
 	group: Group
 
 
