@@ -88,7 +88,7 @@ class Networks(Static):
 
 	async def on_tree_node_collapsed(self, event: Tree.NodeCollapsed) -> None:
 		"""Called when any node is collapsed in the tree"""
-		if isinstance(event.node.data, Group):
+		if isinstance(event.node.data, NDS_Group):
 			await self.leave_group(event.node, event.node.data)
 
 	def compose(self) -> ComposeResult:
