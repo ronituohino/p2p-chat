@@ -396,7 +396,7 @@ def message_broadcast(msg, msg_id, group_id, source_id):
 	logging.info(f"Broadcasting message to peers: {peers}")
 	for peer in other_peers:
 		rpc_client = create_rpc_client(peer.ip, node_port)
-		send_message_to_peer(rpc_client, msg, msg_id, group_id, source_id, peer.node_id)
+		send_message_to_peer(rpc_client, msg, msg_id, group_id)
 
 
 def store_message(msg, msg_id, group_id, source_id, vector_clock):
