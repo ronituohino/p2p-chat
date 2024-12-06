@@ -56,8 +56,8 @@ class Networks(Static):
 		self.app.chat.set_active_group(group)
 
 	def add_peers(self, group_node, peers):
-		for _, peer_nodes in peers:
-			group_node.add_leaf(peer_nodes.name)
+		for peer_node in peers:
+			group_node.add_leaf(peer_node.name)
 
 	async def leave_group(self, group_node, group: NDS_Group):
 		"""Leave a group by contacting the leader, then remove peers from the tree"""
