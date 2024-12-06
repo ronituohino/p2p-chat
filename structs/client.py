@@ -1,4 +1,5 @@
 from munch import Munch
+from .generic import Response
 
 """
 Structs for client objects.
@@ -84,5 +85,5 @@ class Message(Munch):
 ### RESPONSES
 
 
-class JoinGroupResponse:
+class JoinGroupResponse(Response):
 	group: Group

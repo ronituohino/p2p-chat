@@ -26,7 +26,9 @@ class Networking:
 
 	# Called when contacting nds to get the groups of that network
 	async def add_discovery_source(self, nds_ip):
-		return add_node_discovery_source(nds_ip)
+		nds_groups = add_node_discovery_source(nds_ip)
+		logging.info(nds_groups)
+		return nds_groups
 
 	# Called when contacting nds to create a new group
 	# Creation of a group already requires nds server set, so nds_ip should be known.
