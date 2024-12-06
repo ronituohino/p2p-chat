@@ -82,3 +82,7 @@ class Message(Munch):
 
 
 ### RESPONSES
+
+
+class JoinGroupResponse:
+	group: Group

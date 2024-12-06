@@ -14,7 +14,7 @@ from tinyrpc.transports.http import HttpPostClientTransport
 from tinyrpc import RPCClient
 from typing import Optional
 
-from structs.client import Group, Node, Message
+from structs.client import Group, Node, Message, JoinGroupResponse
 from structs.generic import Response
 from structs.nds import FetchGroupResponse, CreateGroupResponse
 
@@ -87,7 +87,6 @@ def add_node_discovery_source(nds_ip):
 	try:
 		nds = rpc_client.get_proxy()
 		response = FetchGroupResponse(munchify(nds.get_groups()))
-
 		if response.ok:
 			return response.groups
 	except BaseException:
@@ -135,7 +134,32 @@ def create_group(group_name, nds_ip) -> Optional[Group]:
 		return None
 
 
-def request_to_join_group(leader_ip, group_id) -> Optional[list[Node]]:
+def leave_group(group: Group):
+	"""A way for client to request leaving the group
+
+	Args:
+		leader_ip (str): An IP addr. of the leader ip
+		group_id (str): An ID of the group.
+
+	Returns:
+		bool: True, if success
+	"""
+	if group.group_id not in groups or groups[group.group_id] is None:
+		logging.error(f"Cannot leave group {group.group_id} because it does not exist.")
+		return groups
+
+	# If we are the leader of the group
+	# we can just dip, and stop responding to messages
+	if group.self_id == group.leader_id:
+		return
+	else:
+		# If we are not the leader
+		# we can just stop sending liveness pings to leader
+		# who then notices that we are gone
+		return
+
+
+def request_to_join_group(leader_ip, group_id) -> list[Node] | None:
 	"""
 	Args:
 		leader_ip (str): An IP addr. of the leader ip
@@ -146,55 +170,81 @@ def request_to_join_group(leader_ip, group_id) -> Optional[list[Node]]:
 	"""
 	rpc_client = create_rpc_client(leader_ip, node_port)
 	# This is request to leader
-	remote_server = rpc_client.get_proxy()
-	response_dict = remote_server.join_group(group_id, self_name)
-	response = Response(**response_dict)
-	if response.success:
-		groups[group_id] = {
-			"group_name": response.data["group_name"],
-			"self_id": response.data["assigned_peer_id"],
-			"leader_id": response.data["leader_id"],
-			"vector_clock": response.data["vector_clock"],
-			"peers": response.data["peers"],
-			"nds_ip": response.data["nds_ip"],
-		}
+	try:
+		leader = rpc_client.get_proxy()
+		response = CreateGroupResponse(munchify(leader.join_group(group_id, self_name)))
+		if response.success:
+			groups[group_id] = {
+				"group_name": response.data["group_name"],
+				"self_id": response.data["assigned_peer_id"],
+				"leader_id": response.data["leader_id"],
+				"vector_clock": response.data["vector_clock"],
+				"peers": response.data["peers"],
+				"nds_ip": response.data["nds_ip"],
+			}
 
-		logging.info(f"Joined group with Peer ID: {response.data['assigned_peer_id']}")
-		threading.Thread(
-			target=send_heartbeat_to_leader, args=(group_id,), daemon=True
-		).start()
-		synchronize_with_leader(group_id)
-		return response.data["peers"]
-	else:
-		logging.error(f"Failed to join group {group_id} with error: {response.message}")
-		return False
+			logging.info(
+				f"Joined group with Peer ID: {response.data['assigned_peer_id']}"
+			)
+			threading.Thread(
+				target=send_heartbeat_to_leader, args=(group_id,), daemon=True
+			).start()
+			synchronize_with_leader(group_id)
+			return response.data["peers"]
+		else:
+			logging.error(
+				f"Failed to join group {group_id} with error: {response.message}"
+			)
+			return False
+	except BaseException:
+		return
 
 
-def request_to_leave_group(leader_ip, group_id):
-	"""A way for client to request leaving the group
+@dispatcher.public
+def join_group(group_id, peer_name):
+	"""
+	This is called when a client asks the group leader if they could join.
 
 	Args:
-		leader_ip (str): An IP addr. of the leader ip
-		group_id (str): An ID of the group.
+		group_id (str): UID of the group.
+		peer_name (peer_name): name of the peer node.
 
 	Returns:
-		bool: True, if success
+		response: If success return data of the group.
 	"""
-	if group_id not in groups or groups[group_id] is None:
-		logging.error(f"Cannot leave group {group_id} because it does not exist.")
-		return groups
 
-	self_id = get_self_id(group_id)
-	rpc_client = create_rpc_client(leader_ip, node_port)
-	remote_server = rpc_client.get_proxy()
-	response_dict = remote_server.leave_group(group_id, self_id)
-	response = Response(**response_dict)
-	if response.success:
-		groups[group_id] = {}
-		logging.info(f"{response.message} {group_id}")
-		return groups
-	else:
-		logging.error("Failed to leave group")
+	logging.info(f"Peer {peer_name} requesting to join group.")
+	try:
+		group = groups.get(group_id)
+		peer_ip = get_ip()
+
+		if group.leader_id != group.self_id:
+			return JoinGroupResponse(
+				ok=False,
+				message="I am not the leader of that group, and I can't accept the request.",
+			)
+
+		for peer in group.peers.values():
+			if peer.name == peer_name:
+				return JoinGroupResponse(
+					ok=False, message="You are already in this group."
+				)
+			if peer.ip == peer_ip:
+				return JoinGroupResponse(
+					ok=False, message="Someone has the same IP as you in this group."
+				)
+
+		assigned_peer_id = max(group.peers.keys(), default=0) + 1
+		group.peers[assigned_peer_id] = Node(
+			node_id=assigned_peer_id, name=peer_name, ip=peer_ip
+		)
+
+		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
+
+		return JoinGroupResponse(ok=True, group=group)
+	except Exception as e:
+		logging.error(f"Error in join_group: {e}")
+		return Response(success=False, message="An unexpected error occurred.")
 
 
 def store_message(msg, msg_id, group_id, source_id, vector_clock):
@@ -511,17 +561,6 @@ def update_leader(group_id, self_id):
 		return Response(success=False, message="Leader was not updated.")
 
 
-def broadcast_peer_list(group_id, target_id):
-	_, self_id, _, _, peers = get_group_info(group_id)
-	for peer_id, peer_info in peers.items():
-		if peer_id == self_id or peer_id == target_id:
-			continue
-		peer_ip = peer_info["ip"]
-		rpc_client = create_rpc_client(peer_ip, node_port)
-		remote_server = rpc_client.get_proxy()
-		remote_server.update_peers(group_id, peers)
-
-
 @dispatcher.public
 def update_peers(group_id, updated_peers):
 	group = groups.get(group_id, {})
@@ -532,100 +571,6 @@ def update_peers(group_id, updated_peers):
 		return Response(success=True, message="Peer list has been updated.")
 	else:
 		return Response(success=False, message="Group not found.")
-
-
-@dispatcher.public
-def join_group(group_id, peer_name):
-	"""An server implementation that allows user to join a group.
-	This is called when client accesses the group leader.
-
-	Args:
-		group_id (str): UID of the group.
-		peer_ip (str): IP addr. of the node sending the request.
-		peer_name (peer_name): name of the peer node.
-
-	Returns:
-		response: If success return data of the group.
-	"""
-
-	logging.info(f"Peer {peer_name} requesting to join group.")
-	try:
-		group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
-		peer_ip = get_ip()
-
-		if not is_group_leader(leader_id, self_id):
-			return Response(success=False, message="Only leader can validate users.")
-
-		for peer in peers.values():
-			if peer["name"] == peer_name:
-				return Response(
-					success=False, message="Peer name already exists in the group."
-				)
-			if peer["ip"] == peer_ip:
-				return Response(
-					success=False, message="Peer IP already exists in the group."
-				)
-
-		assigned_peer_id = max(peers.keys(), default=0) + 1
-		peers[assigned_peer_id] = {"name": peer_name, "ip": peer_ip}
-
-		groups[group_id] = {
-			"group_name": group_name,
-			"self_id": self_id,
-			"peers": peers,
-			"leader_id": leader_id,
-			"vector_clock": vector_clock,
-		}
-
-		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
-		group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
-		broadcast_peer_list(group_id=group_id, target_id=assigned_peer_id)
-		return Response(
-			success=True,
-			message="Joined a group successfully",
-			data={
-				"group_name": group_name,
-				"peers": peers,
-				"assigned_peer_id": assigned_peer_id,
-				"leader_id": leader_id,
-				"vector_clock": vector_clock,
-			},
-		)
-	except Exception as e:
-		logging.error(f"Error in join_group: {e}")
-		return Response(success=False, message="An unexpected error occurred.")
-
-
-@dispatcher.public
-def leave_group(group_id, peer_id):
-	"""A way for client to send leave request
-	  to leader node of the group.
-
-	Args:
-		group_id (str): UID of the group.
-		peer_id (str): UID of the peer wishing to leave the group.
-
-	Returns:
-		response: Success or fail response
-	"""
-
-	group_name, self_id, leader_id, vector_clock, peers = get_group_info(group_id)
-	if not is_group_leader(leader_id, self_id):
-		return Response(success=False, message="Only leader can delete users.")
-
-	if peer_id in peers:
-		peers.pop(peer_id)
-		groups[group_id] = {
-			"group_name": group_name,
-			"self_id": self_id,
-			"leader_id": leader_id,
-			"vector_clock": vector_clock,
-			"peers": peers,
-		}
-		logging.info(f"Peer {peer_id} left the group")
-		broadcast_peer_list(group_id=group_id, target_id=peer_id)
-		return Response(success=True, message="Successfully left the group")
-	return Response(success=False, message="Peer not found")
 
 
 def message_broadcast(msg, msg_id, group_id, source_id):

@@ -2,6 +2,9 @@ from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static, Tree
 from structs.client import Group
+from structs.nds import NDS_Group
+
+import logging
 
 
 class Networks(Static):
@@ -45,7 +48,7 @@ class Networks(Static):
 		tree = self.query_one("Tree")
 		self.network_labels = [nds.label.plain for nds in tree.root.children]
 
-	async def join_group(self, group_node, group: Group):
+	async def join_group(self, group_node, group: NDS_Group):
 		"""Join a group by contacting the leader, then add peers to the tree"""
 		peers = await self.app.net.join_group(group.group_id, group.leader_ip)
 		if peers:
@@ -56,14 +59,14 @@ class Networks(Static):
 		for _, peer_nodes in peers.items():
 			group_node.add_leaf(peer_nodes.name)
 
-	async def leave_group(self, group_node, group: Group):
+	async def leave_group(self, group_node, group: NDS_Group):
 		"""Leave a group by contacting the leader, then remove peers from the tree"""
-		await self.app.net.leave_group(group.group_id, group.leader_ip)
+		await self.app.net.leave_group(group)
 		group_node.remove_children()
 
 	async def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
 		"""Called when any node is expanded in the tree"""
-		if isinstance(event.node.data, Group):
+		if "leader_ip" in event.node.data:
 			"""
 			If the node is a group, join it
 			First leave all other groups that are open (should only be one)

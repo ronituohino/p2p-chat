@@ -4,7 +4,7 @@ from client.service import (
 	add_node_discovery_source,
 	create_group,
 	request_to_join_group,
-	request_to_leave_group,
+	leave_group,
 	send_message,
 )
 import sys
@@ -49,8 +49,8 @@ class Networking:
 
 	# Called when contacting leader of group to leave
 	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
-	async def leave_group(self, group_id, leader_ip) -> None:
-		request_to_leave_group(leader_ip, group_id)
+	async def leave_group(self, group) -> None:
+		leave_group(group)
 
 	# TODOOO!!!
 	async def send_message(self, msg, group_id):
