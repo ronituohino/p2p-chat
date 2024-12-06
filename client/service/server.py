@@ -172,25 +172,17 @@ def request_to_join_group(leader_ip, group_id) -> list[Node] | None:
 	# This is request to leader
 	try:
 		leader = rpc_client.get_proxy()
-		response = CreateGroupResponse(munchify(leader.join_group(group_id, self_name)))
-		if response.success:
-			groups[group_id] = {
-				"group_name": response.data["group_name"],
-				"self_id": response.data["assigned_peer_id"],
-				"leader_id": response.data["leader_id"],
-				"vector_clock": response.data["vector_clock"],
-				"peers": response.data["peers"],
-				"nds_ip": response.data["nds_ip"],
-			}
-
+		response = JoinGroupResponse(munchify(leader.join_group(group_id, self_name)))
+		if response.ok:
+			groups[group_id] = response.group
 			logging.info(
 				f"Joined group with Peer ID: {response.data['assigned_peer_id']}"
 			)
-			threading.Thread(
-				target=send_heartbeat_to_leader, args=(group_id,), daemon=True
-			).start()
-			synchronize_with_leader(group_id)
-			return response.data["peers"]
+			# threading.Thread(
+			# target=send_heartbeat_to_leader, args=(group_id,), daemon=True
+			# ).start()
+			# synchronize_with_leader(group_id)
+			return response.group.peers
 		else:
 			logging.error(
 				f"Failed to join group {group_id} with error: {response.message}"
