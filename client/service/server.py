@@ -303,7 +303,7 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
 		source_id (str): ID of the source peer.
 		destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
 	"""
-	source_id = get_self_id(group_id)
+	source_id = groups[group_id].self_id
 	remote_server = client.get_proxy()
 	response: ReceiveMessageResponse = ReceiveMessageResponse.from_json(
 		remote_server.receive_message(msg, msg_id, group_id, source_id, destination_id)
