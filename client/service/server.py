@@ -269,31 +269,34 @@ def join_group(peer_name):
 ### THE THINGS ABOVE WORK NOW
 
 
-def send_message(msg, group_id):
-	"""Send a message to be broadcasted by leader.
+def send_message(msg):
+	"""Send a message to be broadcasted by leader, called from ui.
 	Args:
 		msg (str): the message.
 		group_id (str): UID of the group.
 	"""
-	group = get_active_group()
-	leader_ip = group.peers[group.leader_id].ip
+
+	active = get_active_group()
+	leader_ip = active.peers[active.leader_id].ip
 	msg_id = str(uuid.uuid4())
 
 	logging.info(f"Networking message to leader {leader_ip}")
 
-	if group.self_id == group.leader_id:
+	if active.self_id == active.leader_id:
 		# We are the leader, broadcast to others
 		logging.info("We are leader, broadcast")
-		message_broadcast(msg, msg_id, group_id, group.self_id)
+		message_broadcast(msg, msg_id, active.group_id, active.self_id)
 	elif leader_ip:
 		# We are not the leader, send to leader who broadcasts to others
 		logging.info("We are not leader, broadcast through leader")
 		rpc_client = create_rpc_client(leader_ip, node_port)
 		send_message_to_peer(
-			client=rpc_client, msg=msg, msg_id=msg_id, group_id=group_id
+			client=rpc_client, msg=msg, msg_id=msg_id, group_id=active.group_id
 		)
 	else:
-		logging.error(f"IP for leader {leader_ip} in group {group_id} does not exist.")
+		logging.error(
+			f"IP for leader {leader_ip} in group {active.group_id} does not exist."
+		)
 
 
 def send_message_to_peer(client, msg, msg_id, group_id):
@@ -371,7 +374,7 @@ def receive_message(msg, msg_id, group_id, source_id):
 
 
 def message_broadcast(msg, msg_id, group_id, source_id):
-	"""A message broadcasts.
+	"""Broadcast a message as leader to other peers
 
 	Args:
 		msg (str): A message that user want to send.
@@ -406,6 +409,9 @@ def message_broadcast(msg, msg_id, group_id, source_id):
 		send_message_to_peer(rpc_client, msg, msg_id, group_id)
 
 
+### IM WORKING ON THE THINGS BETWEEN
+
+
 def store_message(msg, msg_id, group_id, source_id, vector_clock):
 	"""Store a message locally."""
 	if group_id not in message_store:
@@ -420,9 +426,6 @@ def store_message(msg, msg_id, group_id, source_id, vector_clock):
 		}
 	)
 	message_store[group_id] = messages
-
-
-### IM WORKING ON THE THINGS BETWEEN
 
 
 def get_messages(group_id):

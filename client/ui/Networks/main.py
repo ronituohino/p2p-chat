@@ -39,7 +39,6 @@ class Networks(Static):
 			group_node = nds.add(label=group.name, data=group, expand=True)
 			self.close_other_groups(group_node)
 			self.add_peers(group_node, group)
-			self.app.chat.set_active_group(group)
 		except StopIteration:
 			self.app.notify("NDS not found!", severity="warning", timeout=3)
 
@@ -53,7 +52,6 @@ class Networks(Static):
 		group = await self.app.net.join_group(group.leader_ip)
 		if group:
 			self.add_peers(group_node, group)
-			self.app.chat.set_active_group(group)
 			self.app.chat.chat_log.clear()
 
 	def add_peers(self, group_node, group: Group):

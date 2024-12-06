@@ -37,12 +37,6 @@ class Chat(Static):
 	def __init__(self):
 		super().__init__()
 		self.chat_log = None
-		self.active_group: None | Group = None
-
-	def set_active_group(self, group: Group):
-		print("active group set")
-		self.chat_log.clear()
-		self.active_group = group
 
 	def write(self, msg: str):
 		self.chat_log.write(msg, width=66)
@@ -54,8 +48,7 @@ class Chat(Static):
 	async def on_input_submitted(self, event: Input.Submitted):
 		event.input.clear()
 		message = event.value
-		group_id = self.active_group.group_id
-		await self.app.net.send_message(message, group_id)
+		await self.app.net.send_message(message)
 		self.write(f"@me: {message}")
 
 	def compose(self) -> ComposeResult:

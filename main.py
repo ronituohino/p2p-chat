@@ -31,28 +31,24 @@ class Networking:
 
 	# Called when contacting nds to create a new group
 	# Creation of a group already requires nds server set, so nds_ip should be known.
-	## TODO: Error handling
 	async def create_group(self, name, nds_ip) -> Group | None:
 		new_group = create_group(group_name=name, nds_ip=nds_ip)
 		return new_group
 
 	# Called when contacting leader of group to join
-	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
 	async def join_group(self, leader_ip) -> Group | None:
 		group = request_to_join_group(leader_ip)
 		return group
 
 	# Called when contacting leader of group to leave
-	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
 	async def leave_group(self, group_id) -> None:
 		leave_group(group_id)
 
-	# TODOOO!!!
-	async def send_message(self, msg, group_id):
-		logging.info(f"Sending message {msg} to group {group_id}")
-		send_message(msg, group_id)
+	# Called when sending a message to the active group
+	async def send_message(self, msg):
+		send_message(msg)
 
-	# Called when a message needs to be added to local display
+	# Called when a message arrived to the active group
 	def receive_message(self, source_name, msg) -> None:
 		msg = f"{source_name}: {msg}"
 		self.ui.chat.write(msg)
