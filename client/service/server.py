@@ -89,11 +89,15 @@ def add_node_discovery_source(nds_ip):
 		response = FetchGroupResponse(munchify(nds.get_groups()))
 		if response.ok:
 			return response.groups
-	except BaseException:
+		else:
+			logging.error("Failed to add NDS")
+			return None
+	except BaseException as e:
+		logging.error(f"EXC: Failed to add NDS {e}")
 		return None
 
 
-def create_group(group_name, nds_ip) -> Optional[Group]:
+def create_group(group_name, nds_ip) -> Group | None:
 	"""Create a new group and register it with NDS,
 	  making this peer the leader.
 
@@ -111,26 +115,33 @@ def create_group(group_name, nds_ip) -> Optional[Group]:
 	if not group_name:
 		raise ValueError("Group name cannot be empty.")
 
-	nds = rpc_client.get_proxy()
-	response = CreateGroupResponse(munchify(nds.create_group(group_name=group_name)))
-
-	if response.ok:
-		group_id = response.group.group_id
-		this_node = Node(node_id=0, name=self_name, ip=response.group.leader_ip)
-		this_group = Group(
-			group_id=group_id,
-			name=group_name,
-			vector_clock=0,
-			nds_ip=nds_ip,
-			self_id=0,
-			leader_id=0,
-			peers={0: this_node},
+	try:
+		nds = rpc_client.get_proxy()
+		response = CreateGroupResponse(
+			munchify(nds.create_group(group_name=group_name))
 		)
-		groups[group_id] = this_group
 
-		logging.info(f"Created group, {group_name}, with ID: {group_id}")
-		return this_group
-	else:
+		if response.ok:
+			group_id = response.group.group_id
+			this_node = Node(node_id=0, name=self_name, ip=response.group.leader_ip)
+			this_group = Group(
+				group_id=group_id,
+				name=group_name,
+				vector_clock=0,
+				nds_ip=nds_ip,
+				self_id=0,
+				leader_id=0,
+				peers={0: this_node},
+			)
+			groups[group_id] = this_group
+
+			logging.info(f"Created group, {group_name}, with ID: {group_id}")
+			return this_group
+		else:
+			logging.error("Failed to create group")
+			return None
+	except BaseException as e:
+		logging.error(f"EXC: Failed to create group: {e}")
 		return None
 
 
@@ -182,14 +193,18 @@ def request_to_join_group(leader_ip, group_id) -> list[Node] | None:
 			# target=send_heartbeat_to_leader, args=(group_id,), daemon=True
 			# ).start()
 			# synchronize_with_leader(group_id)
-			return response.group.peers
+			logging.info(
+				f"Returning other peers: {list(response.group.peers.values())}"
+			)
+			return list(response.group.peers.values())
 		else:
 			logging.error(
 				f"Failed to join group {group_id} with error: {response.message}"
 			)
-			return False
-	except BaseException:
-		return
+			return None
+	except BaseException as e:
+		logging.error(f"EXC: Failed to join group {group_id}: {e}")
+		return None
 
 
 @dispatcher.public
