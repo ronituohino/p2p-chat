@@ -13,3 +13,4 @@ textual.log
 ../client/modules/messages.db.dir
 ../client/modules/groups.db.dir
 .vscode
+*.log

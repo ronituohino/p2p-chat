@@ -8,10 +8,12 @@ from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.wsgi import WsgiServerTransport
 from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
-from structs import Response
-from dataclasses import dataclass
 
-import better
+from structs.nds import NDS_Group, FetchGroupResponse
+from structs.generic import Response
+
+from munch import munchify
+
 
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
@@ -52,6 +54,16 @@ def serve(ip="0.0.0.0", port=50002):
 
 
 @dispatcher.public
+def get_groups():
+	"""Return a list of all possible Groups to join."""
+	group_list = list(groups.values())
+	logging.info("Groups sent successfully.")
+	res = FetchGroupResponse(ok=True, groups=group_list)
+	logging.info(res)
+	return res
+
+
+@dispatcher.public
 def reset_database():
 	"""Reset the groups database."""
 	global groups
@@ -70,14 +82,6 @@ def create_group(group_name):
 
 	logging.info("Chat creation successful.")
 	return Response(success=True, message="Chat creation successful", data=new_group)
-
-
-@dispatcher.public
-def get_groups():
-	"""Return a list of all possible Groups to join."""
-	group_list = list(groups.values())
-	logging.info("Groups sent successfully.")
-	return Response(ok=True, data=group_list)
 
 
 @dispatcher.public
@@ -142,4 +146,5 @@ def liveness(ip, port):
 
 
 if __name__ == "__main__":
+	logging.basicConfig(filename="nds.log", level=logging.INFO)
 	serve()

@@ -1,6 +1,6 @@
-from modules.ui.ui import ChatApp
-from structs import Group, Node
-from typing import List
+from client.ui import ChatApp
+from structs.nds import NDS_Group
+from structs.client import Group, Node
 
 import asyncio
 
@@ -21,12 +21,12 @@ class StubNetworking:
 	## API
 
 	# Called when contacting nds to get the groups of that network
-	async def add_discovery_source(self, nds_ip) -> List[Group]:
+	async def add_discovery_source(self, nds_ip) -> list[NDS_Group] | None:
 		print("dis + " + nds_ip)
 		await asyncio.sleep(1)
 		return [
-			Group(name="best server", group_id="1", leader_ip="temp_ip"),
-			Group(name="PropagandaChat", group_id="1", leader_ip="temp_ip"),
+			NDS_Group(name="best server", group_id="1", leader_ip="temp_ip"),
+			NDS_Group(name="PropagandaChat", group_id="1", leader_ip="temp_ip"),
 		]
 
 	# Called when contacting nds to create a new group
@@ -37,7 +37,7 @@ class StubNetworking:
 
 	# Called when contacting leader of network to join
 	## either ip of leader, or nds_id + group_id
-	async def join_group(self, group_id, leader_ip) -> List[Node]:
+	async def join_group(self, group_id, leader_ip) -> list[Node]:
 		await asyncio.sleep(1)
 		print("Network: joined group_id - ", group_id, "leader ip - ", leader_ip)
 		return [Node("Jaakko"), Node("p3kk4"), Node("kklP")]

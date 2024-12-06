@@ -1,6 +1,6 @@
 from textual.app import ComposeResult
 from textual.widgets import Input, Static, RichLog
-from structs import Group
+from structs.client import Group
 
 banner = """
   ██████╗ ██████╗ ██████╗        ██████╗██╗  ██╗ █████╗ ████████╗

@@ -1,3 +1,5 @@
+from .generic import Response
+
 """
 Structs for NDS objects.
 Make sure to add re-exports to __init__.py for new additions.
@@ -23,20 +25,8 @@ class NDS_Group(dict):
 	leader_ip: str
 
 
-class Response(dict):
-	"""
-	Represents a generic response object. Make sure this matches with client/structs/Response.
+### RESPONSES
 
-	Attributes
-	----------
-	ok : bool
-		Indicates whether the response was successful or not.
-	message : str
-		The message associated with the response.
-	data : dict
-		The data associated with the response.
-	"""
 
-	ok: bool
-	message: str
-	data: dict
+class FetchGroupResponse(Response):
+	groups: list[NDS_Group]

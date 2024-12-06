@@ -3,10 +3,10 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import Footer
 
-from modules.ui.Chat.main import Chat
-from modules.ui.Networks.main import Networks
-from modules.ui.Networks.add_discovery_source import AddDiscoverySource
-from modules.ui.Networks.create_group import CreateGroup
+from .Chat.main import Chat
+from .Networks.main import Networks
+from .Networks.add_discovery_source import AddDiscoverySource
+from .Networks.create_group import CreateGroup
 
 
 class ChatApp(App):

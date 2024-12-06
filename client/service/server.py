@@ -13,7 +13,12 @@ from tinyrpc.dispatch import RPCDispatcher
 from tinyrpc.transports.http import HttpPostClientTransport
 from tinyrpc import RPCClient
 from typing import Optional
-from structs import Group, Node, Response, Message
+
+from structs.client import Group, Node, Message
+from structs.generic import Response
+from structs.nds import FetchGroupResponse
+
+from munch import munchify
 
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
@@ -81,19 +86,13 @@ def add_node_discovery_source(nds_ip):
 
 	try:
 		nds = rpc_client.get_proxy()
-		response = Response(**nds.get_groups())
-		return response
+		response = FetchGroupResponse(munchify(nds.get_groups()))
 
-		if response.success:
-			return map(
-				lambda g: Group(
-					name=g["group_name"],
-					group_id=g["group_id"],
-					leader_ip=g["leader_ip"],
-				),
-				response.data["groups"],
-			)
-	except BaseException:
+		if response.ok:
+			logging.info(response.groups[0].group_id)
+			return response.groups
+	except BaseException as e:
+		logging.info(e)
 		return None
 
 

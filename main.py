@@ -1,7 +1,6 @@
 from typing import Optional
-from modules.ui.ui import ChatApp
-from structs import Group
-from modules.service.server import (
+from client.ui import ChatApp
+from client.service import (
 	serve,
 	add_node_discovery_source,
 	create_group,
@@ -10,7 +9,9 @@ from modules.service.server import (
 	send_message,
 )
 import sys
+import logging
 
+from structs.client import Group
 ### CLIENT ENTRYPOINT
 
 
@@ -63,6 +64,8 @@ class Networking:
 
 
 def main():
+	logging.basicConfig(filename="client.log", level=logging.INFO)
+
 	if len(sys.argv) > 1:
 		name = sys.argv[1]
 		net = Networking()
