@@ -19,10 +19,13 @@ addresses of the leaders.
 - Liveness ping from client nodes to the active group leader
   - If leader does not hear from a certain node in some time, it assumes they have left the group
   - Also attach vector clock syncs to this
-
 - Leader election system refactor and integration
-
 - Message reordering
+
+Optional:
+
+- Fix tests
+- Liveness ping from leaders to NDS, so that NDS can remove groups which are assumed to be dead according to a timeout
 
 ## Deployment
 
