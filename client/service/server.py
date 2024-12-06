@@ -278,11 +278,12 @@ def send_message(msg, group_id):
 
 	logging.info(f"Networking message to leader {leader_ip}")
 
-	# We are the leader, broadcast to others
 	if group.self_id == group.leader_id:
+		# We are the leader, broadcast to others
 		logging.info("We are leader, broadcast")
 		message_broadcast(msg, msg_id, group_id, group.self_id)
 	elif leader_ip:
+		# We are not the leader, send to leader who broadcasts to others
 		logging.info("We are not leader, broadcast through leader")
 		rpc_client = create_rpc_client(leader_ip, node_port)
 		send_message_to_peer(
@@ -292,7 +293,7 @@ def send_message(msg, group_id):
 		logging.error(f"IP for leader {leader_ip} in group {group_id} does not exist.")
 
 
-def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
+def send_message_to_peer(client, msg, msg_id, group_id):
 	"""Send a message to individual targeted peer.
 
 	Args:
@@ -304,14 +305,10 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
 		destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
 	"""
 	source_id = groups[group_id].self_id
-	remote_server = client.get_proxy()
+	peer = client.get_proxy()
 	response: ReceiveMessageResponse = ReceiveMessageResponse.from_json(
-		remote_server.receive_message(
-			msg=msg,
-			msg_id=msg_id,
-			group_id=group_id,
-			source_id=source_id,
-			destination_id=destination_id,
+		peer.receive_message(
+			msg=msg, msg_id=msg_id, group_id=group_id, source_id=source_id
 		)
 	)
 	if response.ok:
@@ -321,7 +318,7 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
 
 
 @dispatcher.public
-def receive_message(msg, msg_id, group_id, source_id, destination_id):
+def receive_message(msg, msg_id, group_id, source_id):
 	"""Handle receiving a message from peer.
 	If message is meant for current node, then it will store it, otherwise it will
 	broadcast it forward.
@@ -339,7 +336,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 	group = groups[group_id]
 
 	if msg_id in received_messages:
-		return ReceiveMessageResponse(ok=True, message="duplicate").to_json()
+		return ReceiveMessageResponse(ok=False, message="duplicate").to_json()
 
 	# if vector_clock > current_vector_clock + 1:
 	# logging.warning("Detected missing messages. Initiating synchronization.")
@@ -355,23 +352,15 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 	# peers=peers,
 	# )
 
-	peer = group.peers.get(source_id, None)
-	peer_name = peer.get("name", "Unknown")
+	peer = group.peers[source_id]
 
-	if destination_id == group.self_id:
-		received_messages.add(msg_id)
-		networking.receive_message(source_name=peer_name, msg=msg)
-		# store_message(msg, msg_id, group_id, source_id, 0)
-		return ReceiveMessageResponse(ok=True, message="ok").to_json()
-	elif group.self_id == group.leader_id:
-		received_messages.add(msg_id)
-		networking.receive_message(source_name=peer_name, msg=msg)
-		# store_message(msg, msg_id, group_id, source_id, 0)
-		message_broadcast(msg, msg_id, group_id, source_id, destination_id)
-	else:
-		return ReceiveMessageResponse(
-			ok=False, message="error-wrong-destination"
-		).to_json()
+	received_messages.add(msg_id)
+	networking.receive_message(source_name=peer.name, msg=msg)
+	# store_message(msg, msg_id, group_id, source_id, 0)
+
+	if group.self_id == group.leader_id:
+		message_broadcast(msg, msg_id, group_id, source_id)
+	return ReceiveMessageResponse(ok=True, message="ok").to_json()
 
 
 def message_broadcast(msg, msg_id, group_id, source_id):
