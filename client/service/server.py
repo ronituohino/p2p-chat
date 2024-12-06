@@ -477,14 +477,6 @@ def get_group_peers(group_id):
 	return group.get("peers", {})
 
 
-def get_self_id(group_id):
-	"""Return self_id related to the group"""
-	group = groups.get(group_id, {})
-	if not group:
-		raise ValueError(f"Group with ID {group_id} does not exist.")
-	return group.get("self_id", {})
-
-
 def send_heartbeat_to_leader(group_id):
 	_, self_id, leader_id, _, peers = get_group_info(group_id)
 	while True:
