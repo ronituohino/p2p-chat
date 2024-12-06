@@ -338,6 +338,8 @@ def receive_message(msg, msg_id, group_id, source_id):
 	"""
 	group = get_active_group()
 
+	if not group or group.group_id != group_id:
+		return ReceiveMessageResponse(ok=False, message="no-longer-in-group").to_json()
 	if msg_id in received_messages:
 		return ReceiveMessageResponse(ok=False, message="duplicate").to_json()
 
