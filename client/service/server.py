@@ -248,7 +248,9 @@ def join_group(group_id, peer_name):
 
 		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 
-		return JoinGroupResponse(ok=True, group=group)
+		return JoinGroupResponse(
+			ok=True, group=group, assigned_peer_id=assigned_peer_id
+		)
 	except Exception as e:
 		logging.error(f"Error in join_group: {e}")
 		return Response(success=False, message="An unexpected error occurred.")
