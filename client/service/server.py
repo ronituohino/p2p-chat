@@ -16,7 +16,7 @@ from typing import Optional
 
 from structs.client import Group, Node, Message
 from structs.generic import Response
-from structs.nds import FetchGroupResponse
+from structs.nds import FetchGroupResponse, CreateGroupResponse
 
 from munch import munchify
 
@@ -89,10 +89,49 @@ def add_node_discovery_source(nds_ip):
 		response = FetchGroupResponse(munchify(nds.get_groups()))
 
 		if response.ok:
-			logging.info(response.groups[0].group_id)
 			return response.groups
-	except BaseException as e:
-		logging.info(e)
+	except BaseException:
+		return None
+
+
+def create_group(group_name, nds_ip) -> Optional[Group]:
+	"""Create a new group and register it with NDS,
+	  making this peer the leader.
+
+	Raises:
+		ValueError: Error if NDS Server does not exists.
+		ValueError: Error if the group name has not been set
+
+	Returns:
+		Group obj: newly created group
+	"""
+	rpc_client = nds_servers.get(nds_ip, False)
+	if not rpc_client:
+		raise ValueError(f"NDS server with IP {nds_ip} does not exist.")
+
+	if not group_name:
+		raise ValueError("Group name cannot be empty.")
+
+	nds = rpc_client.get_proxy()
+	response = CreateGroupResponse(munchify(nds.create_group(group_name=group_name)))
+
+	if response.ok:
+		group_id = response.group.group_id
+		this_node = Node(node_id=0, name=self_name, ip=response.group.leader_ip)
+		this_group = Group(
+			group_id=group_id,
+			name=group_name,
+			vector_clock=0,
+			nds_ip=nds_ip,
+			self_id=0,
+			leader_id=0,
+			peers={0: this_node},
+		)
+		groups[group_id] = this_group
+
+		logging.info(f"Created group, {group_name}, with ID: {group_id}")
+		return this_group
+	else:
 		return None
 
 
@@ -447,44 +486,6 @@ def is_group_leader(leader_id, self_id):
 		bool: True if the current node is the leader.
 	"""
 	return leader_id == self_id
-
-
-def create_group(group_name, nds_ip) -> Optional[Group]:
-	"""Create a new group and register it with NDS,
-	  making this peer the leader.
-
-	Raises:
-		ValueError: Error if NDS Server does not exists.
-		ValueError: Error if the group name has not been set
-
-	Returns:
-		Group obj: newly created group
-	"""
-	rpc_client = nds_servers.get(nds_ip, False)
-	if not rpc_client:
-		raise ValueError(f"NDS server with IP {nds_ip} does not exist.")
-
-	if not group_name:
-		raise ValueError("Group name cannot be empty")
-
-	remote_server = rpc_client.get_proxy()
-	response_dict = remote_server.create_group(group_name=group_name)
-	response = Response(**response_dict)
-	if response.success:
-		group_id = response.data["group_id"]
-		this_node = {0: {"name": self_name, "ip": response.data["leader_ip"]}}
-		groups[group_id] = {
-			"group_name": group_name,
-			"self_id": 0,
-			"leader_id": 0,
-			"vector_clock": 0,
-			"peers": this_node,
-			"nds_ip": nds_ip,
-		}
-		logging.info(f"Created group {group_name} with ID: {group_id}")
-		return Group(group_name, group_id, response.data["leader_ip"])
-	else:
-		return None
 
 
 def broadcast_new_leader(group_id):

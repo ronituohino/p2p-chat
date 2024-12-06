@@ -1,4 +1,3 @@
-from typing import Optional
 from client.ui import ChatApp
 from client.service import (
 	serve,
@@ -32,7 +31,7 @@ class Networking:
 	# Called when contacting nds to create a new group
 	# Creation of a group already requires nds server set, so nds_ip should be known.
 	## TODO: Error handling
-	async def create_group(self, name, nds_ip) -> Optional[Group]:
+	async def create_group(self, name, nds_ip) -> Group | None:
 		new_group = create_group(group_name=name, nds_ip=nds_ip)
 		if new_group is None:
 			print("Failed to create group!")
@@ -41,7 +40,7 @@ class Networking:
 
 	# Called when contacting leader of group to join
 	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
-	async def join_group(self, group_id, leader_ip) -> Optional[Group]:
+	async def join_group(self, group_id, leader_ip) -> Group | None:
 		group = request_to_join_group(leader_ip, group_id)
 		if group is None:
 			print("Failed to join group!")

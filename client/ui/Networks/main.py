@@ -35,6 +35,7 @@ class Networks(Static):
 			nds = next(nds for nds in tree.root.children if nds.label.plain == nds_ip)
 			group_node = nds.add(label=group.name, data=group, expand=True)
 			self.close_other_groups(group_node)
+			self.add_peers(group_node, group.peers)
 			self.app.chat.set_active_group(group)
 		except StopIteration:
 			self.app.notify("NDS not found!", severity="warning", timeout=3)
@@ -48,9 +49,12 @@ class Networks(Static):
 		"""Join a group by contacting the leader, then add peers to the tree"""
 		peers = await self.app.net.join_group(group.group_id, group.leader_ip)
 		if peers:
-			for _, peer_dict in peers.items():
-				group_node.add_leaf(peer_dict["name"])
+			self.add_peers(group_node, peers)
 		self.app.chat.set_active_group(group)
+
+	def add_peers(self, group_node, peers):
+		for _, peer_nodes in peers.items():
+			group_node.add_leaf(peer_nodes.name)
 
 	async def leave_group(self, group_node, group: Group):
 		"""Leave a group by contacting the leader, then remove peers from the tree"""

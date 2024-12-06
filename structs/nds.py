@@ -1,4 +1,5 @@
 from .generic import Response
+from munch import Munch
 
 """
 Structs for NDS objects.
@@ -6,7 +7,7 @@ Make sure to add re-exports to __init__.py for new additions.
 """
 
 
-class NDS_Group(dict):
+class NDS_Group(Munch):
 	"""
 	A class used to represent a Group (i.e. a chat room). NDS does not need much info about groups.
 
@@ -30,3 +31,7 @@ class NDS_Group(dict):
 
 class FetchGroupResponse(Response):
 	groups: list[NDS_Group]
+
+
+class CreateGroupResponse(Response):
+	group: NDS_Group

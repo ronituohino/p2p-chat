@@ -9,7 +9,7 @@ from tinyrpc.transports.wsgi import WsgiServerTransport
 from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
 
-from structs.nds import NDS_Group, FetchGroupResponse
+from structs.nds import NDS_Group, FetchGroupResponse, CreateGroupResponse
 from structs.generic import Response
 
 from munch import munchify
@@ -39,9 +39,7 @@ nds_port = 50002
 dispatcher = RPCDispatcher()
 
 # Global variables
-groups: dict[str, NDS_Group] = {
-	0: NDS_Group(group_id=0, name="test", leader_ip="123")
-}  # key is group_id
+groups: dict[str, NDS_Group] = {}  # key is group_id
 
 
 def serve(ip="0.0.0.0", port=50002):
@@ -57,10 +55,19 @@ def serve(ip="0.0.0.0", port=50002):
 def get_groups():
 	"""Return a list of all possible Groups to join."""
 	group_list = list(groups.values())
-	logging.info("Groups sent successfully.")
-	res = FetchGroupResponse(ok=True, groups=group_list)
-	logging.info(res)
-	return res
+	logging.info(f"Groups sent: {group_list}")
+	return FetchGroupResponse(ok=True, groups=group_list)
+
+
+@dispatcher.public
+def create_group(group_name):
+	"""Create a new chat."""
+	group_id = str(uuid.uuid4())
+	logging.info(f"Creating group: {group_name}")
+	new_group = NDS_Group(group_id=group_id, name=group_name, leader_ip=get_ip())
+	groups[group_id] = new_group
+	logging.info(f"Group creation successful for {group_name}")
+	return CreateGroupResponse(ok=True, group=new_group)
 
 
 @dispatcher.public
@@ -69,19 +76,6 @@ def reset_database():
 	global groups
 	groups = {}
 	return {"success": True, "message": "Database reset successfully"}
-
-
-@dispatcher.public
-def create_group(group_name):
-	"""Create a new chat."""
-	group_id = str(uuid.uuid4())
-	logging.info(f"Creating a group {group_name}")
-
-	new_group = NDS_Group(group_id=group_id, name=group_name, leader_ip=get_ip())
-	groups[group_id] = new_group
-
-	logging.info("Chat creation successful.")
-	return Response(success=True, message="Chat creation successful", data=new_group)
 
 
 @dispatcher.public
