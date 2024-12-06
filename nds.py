@@ -12,9 +12,6 @@ from tinyrpc.dispatch import RPCDispatcher
 from structs.nds import NDS_Group, FetchGroupResponse, CreateGroupResponse
 from structs.generic import Response
 
-from munch import munchify
-
-
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
 
@@ -56,7 +53,7 @@ def get_groups():
 	"""Return a list of all possible Groups to join."""
 	group_list = list(groups.values())
 	logging.info(f"Groups sent: {group_list}")
-	return FetchGroupResponse(ok=True, groups=group_list)
+	return FetchGroupResponse(ok=True, message="OK", groups=group_list).to_json()
 
 
 @dispatcher.public
@@ -67,7 +64,7 @@ def create_group(group_name):
 	new_group = NDS_Group(group_id=group_id, name=group_name, leader_ip=get_ip())
 	groups[group_id] = new_group
 	logging.info(f"Group creation successful for {group_name}")
-	return CreateGroupResponse(ok=True, group=new_group)
+	return CreateGroupResponse(ok=True, group=new_group).to_json()
 
 
 @dispatcher.public

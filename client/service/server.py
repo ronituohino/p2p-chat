@@ -23,8 +23,6 @@ from structs.client import (
 from structs.generic import Response
 from structs.nds import FetchGroupResponse, CreateGroupResponse
 
-from munch import munchify, unmunchify
-
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
 
@@ -93,7 +91,7 @@ def add_node_discovery_source(nds_ip):
 
 	try:
 		nds = rpc_client.get_proxy()
-		response = FetchGroupResponse(munchify(nds.get_groups()))
+		response = FetchGroupResponse.from_json(nds.get_groups())
 		if response.ok:
 			return response.groups
 		else:
@@ -127,8 +125,8 @@ def create_group(group_name, nds_ip) -> Group | None:
 
 	try:
 		nds = rpc_client.get_proxy()
-		response = CreateGroupResponse(
-			munchify(nds.create_group(group_name=group_name))
+		response = CreateGroupResponse.from_json(
+			nds.create_group(group_name=group_name)
 		)
 
 		if response.ok:
@@ -193,7 +191,7 @@ def request_to_join_group(leader_ip, group_id) -> list[Node] | None:
 	# This is request to leader
 	try:
 		leader = rpc_client.get_proxy()
-		response = JoinGroupResponse(unmunchify(leader.join_group(group_id, self_name)))
+		response = JoinGroupResponse.from_json(leader.join_group(group_id, self_name))
 		if response.ok:
 			response.group.self_id = response.assigned_peer_id
 			groups[group_id] = response.group
@@ -235,17 +233,17 @@ def join_group(group_id, peer_name):
 			return JoinGroupResponse(
 				ok=False,
 				message="I am not the leader of that group, and I can't accept the request.",
-			)
+			).to_json()
 
 		for peer in group.peers.values():
 			if peer.name == peer_name:
 				return JoinGroupResponse(
 					ok=False, message="You are already in this group."
-				)
+				).to_json()
 			if peer.ip == peer_ip:
 				return JoinGroupResponse(
 					ok=False, message="Someone has the same IP as you in this group."
-				)
+				).to_json()
 
 		assigned_peer_id = max(group.peers.keys(), default=0) + 1
 		group.peers[assigned_peer_id] = Node(
@@ -256,10 +254,12 @@ def join_group(group_id, peer_name):
 
 		return JoinGroupResponse(
 			ok=True, group=group, assigned_peer_id=assigned_peer_id
-		)
+		).to_json()
 	except Exception as e:
 		logging.error(f"Error in join_group: {e}")
-		return Response(success=False, message="An unexpected error occurred.")
+		return JoinGroupResponse(
+			ok=False, message="An unexpected error occurred."
+		).to_json()
 
 
 ### THE THINGS ABOVE WORK NOW
@@ -304,12 +304,8 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
 	"""
 	source_id = get_self_id(group_id)
 	remote_server = client.get_proxy()
-	response = ReceiveMessageResponse(
-		munchify(
-			remote_server.receive_message(
-				msg, msg_id, group_id, source_id, destination_id
-			)
-		)
+	response = ReceiveMessageResponse.from_json(
+		remote_server.receive_message(msg, msg_id, group_id, source_id, destination_id)
 	)
 	if response.ok:
 		logging.info(f"Message sent, here is response: {response.message}")
@@ -336,7 +332,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 	group = groups[group_id]
 
 	if msg_id in received_messages:
-		return ReceiveMessageResponse(ok=True, message="Duplicate message.")
+		return ReceiveMessageResponse(ok=True, message="Duplicate message.").to_json()
 
 	# if vector_clock > current_vector_clock + 1:
 	# logging.warning("Detected missing messages. Initiating synchronization.")
@@ -359,7 +355,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 		received_messages.add(msg_id)
 		networking.receive_message(source_name=peer_name, msg=msg)
 		# store_message(msg, msg_id, group_id, source_id, 0)
-		return ReceiveMessageResponse(ok=True, message="Message received.")
+		return ReceiveMessageResponse(ok=True, message="Message received.").to_json()
 	elif group.self_id == group.leader_id:
 		received_messages.add(msg_id)
 		networking.receive_message(source_name=peer_name, msg=msg)
@@ -368,7 +364,7 @@ def receive_message(msg, msg_id, group_id, source_id, destination_id):
 	else:
 		return ReceiveMessageResponse(
 			success=False, message="Error message sent to incorrect location."
-		)
+		).to_json()
 
 
 def message_broadcast(msg, msg_id, group_id, source_id):

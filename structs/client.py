@@ -1,4 +1,6 @@
-from munch import Munch
+from dataclasses import dataclass
+from dataclasses_json import dataclass_json
+
 from .generic import Response
 
 """
@@ -7,7 +9,9 @@ Make sure to add re-exports to __init__.py for new additions.
 """
 
 
-class Node(Munch):
+@dataclass_json
+@dataclass
+class Node:
 	"""
 	A class used to represent any Node (i.e. another client).
 
@@ -26,7 +30,9 @@ class Node(Munch):
 	ip: str
 
 
-class Group(Munch):
+@dataclass_json
+@dataclass
+class Group:
 	"""
 	A class used to represent a Group (i.e. a chat room).
 
@@ -57,7 +63,9 @@ class Group(Munch):
 	nds_ip: str
 
 
-class Message(Munch):
+@dataclass_json
+@dataclass
+class Message:
 	"""
 	A class used to represent a single Message sent in the Group.
 
@@ -85,10 +93,14 @@ class Message(Munch):
 ### RESPONSES
 
 
+@dataclass_json
+@dataclass
 class JoinGroupResponse(Response):
 	assigned_peer_id: int
 	group: Group
 
 
+@dataclass_json
+@dataclass
 class ReceiveMessageResponse(Response):
 	pass

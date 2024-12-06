@@ -13,6 +13,7 @@ dependencies = [
   "sqlitedict>=2.1.0",
   "asyncio-gevent>=0.2.0",
   "munch>=4.0.0",
+  "dataclasses-json>=0.6.7",
 ]
 
 [dependency-groups]
