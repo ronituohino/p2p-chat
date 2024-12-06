@@ -275,7 +275,14 @@ def send_message(msg, group_id):
 	leader_ip = group.peers[group.leader_id].ip
 	msg_id = str(uuid.uuid4())
 
-	if leader_ip:
+	logging.info(f"Networking message to leader {leader_ip}")
+
+	# We are the leader, broadcast to others
+	if group.self_id == group.leader_id:
+		logging.info("We are leader, broadcast")
+		message_broadcast(msg, msg_id, group_id, group.self_id)
+	elif leader_ip:
+		logging.info("We are not leader, broadcast through leader")
 		rpc_client = create_rpc_client(leader_ip, node_port)
 		send_message_to_peer(
 			client=rpc_client, msg=msg, msg_id=msg_id, group_id=group_id

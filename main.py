@@ -49,6 +49,7 @@ class Networking:
 
 	# TODOOO!!!
 	async def send_message(self, msg, group_id):
+		logging.info(f"Sending message {msg} to group {group_id}")
 		send_message(msg, group_id)
 
 	# Called when a message needs to be added to local display
