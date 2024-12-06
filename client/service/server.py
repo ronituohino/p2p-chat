@@ -23,7 +23,7 @@ from structs.client import (
 from structs.generic import Response
 from structs.nds import FetchGroupResponse, CreateGroupResponse
 
-from munch import munchify
+from munch import munchify, unmunchify
 
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
@@ -193,7 +193,7 @@ def request_to_join_group(leader_ip, group_id) -> list[Node] | None:
 	# This is request to leader
 	try:
 		leader = rpc_client.get_proxy()
-		response = JoinGroupResponse(munchify(leader.join_group(group_id, self_name)))
+		response = JoinGroupResponse(unmunchify(leader.join_group(group_id, self_name)))
 		if response.ok:
 			response.group.self_id = response.assigned_peer_id
 			groups[group_id] = response.group
