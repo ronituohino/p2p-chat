@@ -84,29 +84,21 @@ Make sure the repo is up to date
 git pull
 ```
 
-Install dependencies for services
+Install dependencies 
 
 ```
-cd nds
 uv sync
 ```
 
-```
-cd client
-uv sync
-```
-
-To run NDS
+To run NDS, note that a client should not be run on the same computer as NDS, because IP addresses could get fumbled.
 
 ```
-cd nds
 uv run main.py
 ```
 
 To run client
 
 ```
-cd client
 uv run main.py <name>
 ```
 
@@ -124,25 +116,11 @@ formatter.
 
 ### Client ui development
 
-For effective ui development, launch textual development console:
+For effective ui development, launch the app with fake networking layer:
 
 ```
-uvx --from textual-dev textual console --port 7654 -x SYSTEM -x EVENT -x DEBUG -x INFO -x LOGGING
+uv run ui.py
 ```
-
-Textual logs can also be enabled by leaving out the "-x (CLASS)" clauses. More
-info on the
-[devtools here](https://textual.textualize.io/guide/devtools/#devtools). Textual
-can also be run on the browser, which is quite amazing.
-
-After launching the dev console, start the ui itself in a separate terminal
-
-```
-cd client
-uvx --from textual-dev textual run --dev --port 7654 ui.py tester
-```
-
-`print()` statements will be logged on the dev console with this setup.
 
 ### Tests
 
