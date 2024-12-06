@@ -24,7 +24,7 @@ class StubNetworking:
 
 	# Called when contacting nds to get the groups of that network
 	async def add_discovery_source(self, nds_ip) -> list[NDS_Group] | None:
-		print("dis + " + nds_ip)
+		logging.info("dis + " + nds_ip)
 		await asyncio.sleep(1)
 		return [
 			NDS_Group(name="best server", group_id="1", leader_ip="temp_ip"),
@@ -33,7 +33,7 @@ class StubNetworking:
 
 	# Called when contacting nds to create a new group
 	async def create_group(self, name, nds_ip) -> Group:
-		print("connecting to: " + nds_ip + " -to create group: " + name)
+		logging.info("connecting to: " + nds_ip + " -to create group: " + name)
 		await asyncio.sleep(1)
 		return Group(
 			name=name,
@@ -49,7 +49,7 @@ class StubNetworking:
 	## either ip of leader, or nds_id + group_id
 	async def join_group(self, leader_ip) -> Group | None:
 		await asyncio.sleep(1)
-		print("Network: joined group, leader ip - ", leader_ip)
+		logging.info("Network: joined group, leader ip - ", leader_ip)
 		return Group(
 			group_id="123",
 			name="bestgroup!",
@@ -67,12 +67,11 @@ class StubNetworking:
 	# Called when contacting leader of network to leave
 	async def leave_group(self, group_id) -> None:
 		await asyncio.sleep(1)
-		print("Network: left group_id - ", group_id)
+		logging.info("Network: left group_id - ", group_id)
 
 	async def send_message(self, msg, group_id) -> bool:
-		logging.info("Message sent: ", msg)
+		logging.info("Sending message: ", msg)
 		await asyncio.sleep(1)
-		print("Message sent: ", msg)
 		return True
 
 	# Called when a message needs to be added to local display
@@ -97,7 +96,7 @@ def main():
 		app = ChatApp(net=net, serve=None, node_name=name)
 		app.run()
 	else:
-		print("Please provide your name using a CLI argument.")
+		logging.info("Please provide your name using a CLI argument.")
 
 
 if __name__ == "__main__":

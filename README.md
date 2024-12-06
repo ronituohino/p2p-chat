@@ -34,18 +34,19 @@ These can be connected via SSH.
 The NDS needs to be on one of the computers, and clients can be run remotely as
 well.
 
-The VM connection only works through certain Wi-Fi points, at least _eduroam_
-works.
-
 To connect to a faculty VM
 
 ```
 ssh -J <UoH username>@<jump proxy> <UoH username>@<vm>
 ```
 
-Jump proxies: `melkki.cs.helsinki.fi`  
-VMs: `svm-11.cs.helsinki.fi`, `svm-11-2.cs.helsinki.fi`,
-`svm-11-3.cs.helsinki.fi`
+Jump proxies:
+- melkki.cs.helsinki.fi
+
+VMs: 
+- svm-11.cs.helsinki.fi
+- svm-11-2.cs.helsinki.fi
+- svm-11-3.cs.helsinki.fi
 
 e.g.
 
@@ -104,7 +105,7 @@ uv sync
 To run NDS, note that a client should not be run on the same computer as NDS, because IP addresses could get fumbled.
 
 ```
-uv run main.py
+uv run nds.py
 ```
 
 To run client
