@@ -51,7 +51,9 @@ class Chat(Static):
 
 	def on_input_submitted(self, event: Input.Submitted):
 		event.input.clear()
-		self.write(f"@me: {event.value}")
+		message = event.value
+		group_id = self.active_group.group_id
+		self.app.net.send_message(message, group_id)
 
 	def compose(self) -> ComposeResult:
 		yield RichLog(wrap=True, auto_scroll=True)

@@ -277,13 +277,11 @@ def send_message(msg, group_id):
 
 	if leader_ip:
 		rpc_client = create_rpc_client(leader_ip, node_port)
-		return send_message_to_peer(
+		send_message_to_peer(
 			client=rpc_client, msg=msg, msg_id=msg_id, group_id=group_id
 		)
 	else:
-		logging.error(
-			f"IP addr. for leader {leader_ip} in group {group_id} does not exist"
-		)
+		logging.error(f"IP for leader {leader_ip} in group {group_id} does not exist.")
 
 
 def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
