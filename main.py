@@ -45,8 +45,8 @@ class Networking:
 		leave_group(group_id)
 
 	# Called when sending a message to the active group
-	async def send_message(self, msg):
-		send_message(msg)
+	async def send_message(self, msg) -> bool:
+		return send_message(msg)
 
 	# Called when a message arrived to the active group
 	def receive_message(self, source_name, msg) -> None:

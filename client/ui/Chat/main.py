@@ -48,8 +48,9 @@ class Chat(Static):
 	async def on_input_submitted(self, event: Input.Submitted):
 		event.input.clear()
 		message = event.value
-		await self.app.net.send_message(message)
-		self.write(f"@me: {message}")
+		sent = await self.app.net.send_message(message)
+		if sent:
+			self.write(f"@me: {message}")
 
 	def compose(self) -> ComposeResult:
 		yield RichLog(wrap=True, auto_scroll=True)

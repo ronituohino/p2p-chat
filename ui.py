@@ -69,10 +69,11 @@ class StubNetworking:
 		await asyncio.sleep(1)
 		print("Network: left group_id - ", group_id)
 
-	async def send_message(self, msg, group_id):
+	async def send_message(self, msg, group_id) -> bool:
 		logging.info("Message sent: ", msg)
 		await asyncio.sleep(1)
 		print("Message sent: ", msg)
+		return True
 
 	# Called when a message needs to be added to local display
 	def receive_message(self, source_name, msg) -> None:

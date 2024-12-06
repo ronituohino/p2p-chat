@@ -269,16 +269,19 @@ def join_group(peer_name):
 ### THE THINGS ABOVE WORK NOW
 
 
-def send_message(msg):
+def send_message(msg) -> bool:
 	"""Send a message to be broadcasted by leader, called from ui.
 	Args:
 		msg (str): the message.
 		group_id (str): UID of the group.
+
+	Returns:
+		bool: If message was sent successfully.
 	"""
 
 	active = get_active_group()
 	if not active:
-		return
+		return False
 
 	leader_ip = active.peers[active.leader_id].ip
 	msg_id = str(uuid.uuid4())
@@ -288,18 +291,19 @@ def send_message(msg):
 	if active.self_id == active.leader_id:
 		# We are the leader, broadcast to others
 		logging.info("We are leader, broadcast")
-		message_broadcast(msg, msg_id, active.group_id, active.self_id)
+		return message_broadcast(msg, msg_id, active.group_id, active.self_id)
 	elif leader_ip:
 		# We are not the leader, send to leader who broadcasts to others
 		logging.info("We are not leader, broadcast through leader")
 		rpc_client = create_rpc_client(leader_ip, node_port)
-		send_message_to_peer(
+		return send_message_to_peer(
 			client=rpc_client, msg=msg, msg_id=msg_id, group_id=active.group_id
 		)
 	else:
 		logging.error(
 			f"IP for leader {leader_ip} in group {active.group_id} does not exist."
 		)
+		return False
 
 
 def send_message_to_peer(client, msg, msg_id, group_id):
@@ -321,11 +325,14 @@ def send_message_to_peer(client, msg, msg_id, group_id):
 				msg=msg, msg_id=msg_id, group_id=group_id, source_id=source_id
 			)
 		)
+		if response.ok:
+			return True
 		if not response.ok:
 			logging.info(f"Failed to send message: {response.message}")
+			return False
 	except BaseException as e:
 		logging.info(f"Failed to send message: {e}")
-		return
+		return False
 
 
 @dispatcher.public
@@ -376,7 +383,7 @@ def receive_message(msg, msg_id, group_id, source_id):
 	return ReceiveMessageResponse(ok=True, message="ok").to_json()
 
 
-def message_broadcast(msg, msg_id, group_id, source_id):
+def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 	"""Broadcast a message as leader to other peers
 
 	Args:
@@ -393,7 +400,7 @@ def message_broadcast(msg, msg_id, group_id, source_id):
 
 	if len(other_peers) < 1:
 		logging.info(f"No other peers found for group {group_id}.")
-		return
+		return False
 
 	# vector_clock += 1
 	# msg = (vector_clock, msg)
@@ -410,6 +417,7 @@ def message_broadcast(msg, msg_id, group_id, source_id):
 	for peer in other_peers:
 		rpc_client = create_rpc_client(peer.ip, node_port)
 		send_message_to_peer(rpc_client, msg, msg_id, group_id)
+	return True
 
 
 ### IM WORKING ON THE THINGS BETWEEN
