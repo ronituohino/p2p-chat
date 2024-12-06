@@ -50,10 +50,10 @@ class Networks(Static):
 
 	async def join_group(self, group_node, group: NDS_Group):
 		"""Join a group by contacting the leader, then add peers to the tree"""
-		peers = await self.app.net.join_group(group.group_id, group.leader_ip)
+		peers = await self.app.net.join_group(group.leader_ip)
 		if peers:
 			self.add_peers(group_node, peers)
-		self.app.chat.set_active_group(group)
+			self.app.chat.set_active_group(group)
 
 	def add_peers(self, group_node, peers):
 		for peer_node in peers:

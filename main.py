@@ -38,8 +38,8 @@ class Networking:
 
 	# Called when contacting leader of group to join
 	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
-	async def join_group(self, group_id, leader_ip) -> Group | None:
-		peers = request_to_join_group(leader_ip, group_id)
+	async def join_group(self, leader_ip) -> Group | None:
+		peers = request_to_join_group(leader_ip)
 		return peers
 
 	# Called when contacting leader of group to leave
