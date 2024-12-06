@@ -60,7 +60,9 @@ class AddDiscoverySource(ModalScreen):
 			groups = await self.app.net.add_discovery_source(nds_ip)
 			if not groups:
 				self.app.notify(
-					f"Could not add NDS with IP: {nds_ip}!", severity="error", timeout=5
+					f"Could not add NDS with IP: {nds_ip}! {groups}",
+					severity="error",
+					timeout=5,
 				)
 				return
 			self.app.networks.add_nds(nds_ip, groups)

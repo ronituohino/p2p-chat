@@ -3,12 +3,11 @@ from modules.ui.ui import ChatApp
 from structs import Group
 from modules.service.server import (
 	serve,
-	fetch_groups,
 	add_node_discovery_source,
 	create_group,
 	request_to_join_group,
 	request_to_leave_group,
-	send_message
+	send_message,
 )
 import sys
 
@@ -27,15 +26,7 @@ class Networking:
 
 	# Called when contacting nds to get the groups of that network
 	async def add_discovery_source(self, nds_ip):
-		add_node_discovery_source(nds_ip)
-		groups = fetch_groups(nds_ip)
-
-		return map(
-			lambda g: Group(
-				name=g["group_name"], group_id=g["group_id"], leader_ip=g["leader_ip"]
-			),
-			groups,
-		)
+		return add_node_discovery_source(nds_ip)
 
 	# Called when contacting nds to create a new group
 	# Creation of a group already requires nds server set, so nds_ip should be known.
@@ -60,7 +51,6 @@ class Networking:
 	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
 	async def leave_group(self, group_id, leader_ip) -> None:
 		request_to_leave_group(leader_ip, group_id)
-		
 
 	# TODOOO!!!
 	async def send_message(self, msg, group_id):

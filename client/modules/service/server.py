@@ -12,9 +12,8 @@ from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
 from tinyrpc.transports.http import HttpPostClientTransport
 from tinyrpc import RPCClient
-from typing import Optional, List
-from sqlitedict import SqliteDict
-from .structs import Group, Node, Response
+from typing import Optional
+from structs import Group, Node, Response, Message
 
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
@@ -32,27 +31,20 @@ def get_ip():
 	return env.get("REMOTE_ADDR", "Unknown IP")
 
 
-dispatcher = RPCDispatcher()
+# Constants
 node_port = 50001
 nds_port = 50002
-nds_servers = SqliteDict("discovery_server.db", autocommit=True)
-groups = SqliteDict("groups.db", autocommit=True)
-message_store = SqliteDict("messages.db", autocommit=True)
-received_messages = set()
 
+# Runtime constants
+dispatcher = RPCDispatcher()
 self_name = None
 networking = None
 
-
-# group_id: {
-#   group_name,
-#   self_id,
-#   leader_id,
-#   vector_clock,
-#    peers: {
-#        id: {name, ip}
-#        }
-#    }
+# Global variables
+nds_servers: dict[str, RPCClient] = {}  # key is nds_ip
+groups: dict[str, Group] = {}  # key is group_id
+message_store: dict[str, Message] = {}  # key is group_id
+received_messages = set()
 
 
 def serve(net=None, node_name=None):
@@ -60,18 +52,111 @@ def serve(net=None, node_name=None):
 	self_name = node_name
 	global networking
 	networking = net
+
 	transport = CustomWSGITransport(queue_class=gevent.queue.Queue)
 	wsgi_server = gevent.pywsgi.WSGIServer(("0.0.0.0", node_port), transport.handle)
 	gevent.spawn(wsgi_server.serve_forever)
+
 	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
 	rpc_server.serve_forever()
 
 
 def create_rpc_client(ip, port):
+	"""
+	Create a remote client object.
+	This itself does not attempt to send anything, so it cannot fail.
+	"""
 	rpc_client = RPCClient(
-		JSONRPCProtocol(), HttpPostClientTransport(f"http://{ip}:{port}/", timeout=10)
+		JSONRPCProtocol(), HttpPostClientTransport(f"http://{ip}:{port}/", timeout=5)
 	)
 	return rpc_client
+
+
+def add_node_discovery_source(nds_ip):
+	"""
+	Adds a discovery server, and returns all possible groups to join from NDS or None, if the connection fails.
+	"""
+	rpc_client = create_rpc_client(ip=nds_ip, port=nds_port)
+	nds_servers[nds_ip] = rpc_client
+
+	try:
+		nds = rpc_client.get_proxy()
+		response = Response(**nds.get_groups())
+		return response
+
+		if response.success:
+			return map(
+				lambda g: Group(
+					name=g["group_name"],
+					group_id=g["group_id"],
+					leader_ip=g["leader_ip"],
+				),
+				response.data["groups"],
+			)
+	except BaseException:
+		return None
+
+
+def request_to_join_group(leader_ip, group_id) -> Optional[list[Node]]:
+	"""
+	Args:
+		leader_ip (str): An IP addr. of the leader ip
+		group_id (str): An ID of the group.
+
+	Returns:
+		list: A set of nodes if success.
+	"""
+	rpc_client = create_rpc_client(leader_ip, node_port)
+	# This is request to leader
+	remote_server = rpc_client.get_proxy()
+	response_dict = remote_server.join_group(group_id, self_name)
+	response = Response(**response_dict)
+	if response.success:
+		groups[group_id] = {
+			"group_name": response.data["group_name"],
+			"self_id": response.data["assigned_peer_id"],
+			"leader_id": response.data["leader_id"],
+			"vector_clock": response.data["vector_clock"],
+			"peers": response.data["peers"],
+			"nds_ip": response.data["nds_ip"],
+		}
+
+		logging.info(f"Joined group with Peer ID: {response.data['assigned_peer_id']}")
+		threading.Thread(
+			target=send_heartbeat_to_leader, args=(group_id,), daemon=True
+		).start()
+		synchronize_with_leader(group_id)
+		return response.data["peers"]
+	else:
+		logging.error(f"Failed to join group {group_id} with error: {response.message}")
+		return False
+
+
+def request_to_leave_group(leader_ip, group_id):
+	"""A way for client to request leaving the group
+
+	Args:
+		leader_ip (str): An IP addr. of the leader ip
+		group_id (str): An ID of the group.
+
+	Returns:
+		bool: True, if success
+	"""
+	if group_id not in groups or groups[group_id] is None:
+		logging.error(f"Cannot leave group {group_id} because it does not exist.")
+		return groups
+
+	self_id = get_self_id(group_id)
+	rpc_client = create_rpc_client(leader_ip, node_port)
+	remote_server = rpc_client.get_proxy()
+	response_dict = remote_server.leave_group(group_id, self_id)
+	response = Response(**response_dict)
+	if response.success:
+		groups[group_id] = {}
+		logging.info(f"{response.message} {group_id}")
+		return groups
+	else:
+		logging.error("Failed to leave group")
 
 
 def store_message(msg, msg_id, group_id, source_id, vector_clock):
@@ -170,8 +255,8 @@ def send_heartbeat_to_leader(group_id):
 			logging.error("Leader IP addr. not found. Initiating election...")
 			leader_election(group_id=group_id)
 
-		min_interval = 30
-		max_interval = 60
+		min_interval = 2
+		max_interval = 4
 		interval = random.uniform(min_interval, max_interval)
 		time.sleep(interval)
 
@@ -353,95 +438,6 @@ def election_message(group_id, candidate_id, candidate_vc):
 		return Response(success=True, message="ACK")
 
 
-@dispatcher.public
-def fetch_groups(nds_ip) -> List[Group]:
-	"""Returns all possible groups to join"""
-	nds = nds_servers.get(nds_ip)
-	remote_server = nds.get_proxy()
-	response_dict = remote_server.get_groups()
-	response = Response(**response_dict)
-	if response.success:
-		return response.data["groups"]
-	return []
-
-
-def add_node_discovery_source(nds_ip) -> bool:
-	"""Add a discovery server.
-
-	Args:
-		nds_ip (str): IP addr. of the node discovery server
-
-	Returns:
-		bool: True, indicates success
-	"""
-	rpc_client = create_rpc_client(ip=nds_ip, port=nds_port)
-	nds_servers[nds_ip] = rpc_client
-	return True
-
-
-def request_to_join_group(leader_ip, group_id) -> Optional[List[Node]]:
-	"""_summary_
-
-	Args:
-		leader_ip (str): An IP addr. of the leader ip
-		group_id (str): An ID of the group.
-
-	Returns:
-		list: A set of nodes if success.
-	"""
-	rpc_client = create_rpc_client(leader_ip, node_port)
-	# This is request to leader
-	remote_server = rpc_client.get_proxy()
-	response_dict = remote_server.join_group(group_id, self_name)
-	response = Response(**response_dict)
-	if response.success:
-		groups[group_id] = {
-			"group_name": response.data["group_name"],
-			"self_id": response.data["assigned_peer_id"],
-			"leader_id": response.data["leader_id"],
-			"vector_clock": response.data["vector_clock"],
-			"peers": response.data["peers"],
-			"nds_ip": response.data["nds_ip"]
-		}
-
-		logging.info(f"Joined group with Peer ID: {response.data['assigned_peer_id']}")
-		threading.Thread(
-			target=send_heartbeat_to_leader, args=(group_id,), daemon=True
-		).start()
-		synchronize_with_leader(group_id)
-		return response.data["peers"]
-	else:
-		logging.error(f"Failed to join group {group_id} with error: {response.message}")
-		return False
-
-
-def request_to_leave_group(leader_ip, group_id):
-	"""A way for client to request leaving the group
-
-	Args:
-		leader_ip (str): An IP addr. of the leader ip
-		group_id (str): An ID of the group.
-
-	Returns:
-		bool: True, if success
-	"""
-	if group_id not in groups or groups[group_id] is None:
-		logging.error(f"Cannot leave group {group_id} because it does not exist.")
-		return groups
-
-	self_id = get_self_id(group_id)
-	rpc_client = create_rpc_client(leader_ip, node_port)
-	remote_server = rpc_client.get_proxy()
-	response_dict = remote_server.leave_group(group_id, self_id)
-	response = Response(**response_dict)
-	if response.success:
-		groups[group_id] = {}
-		logging.info(f"{response.message} {group_id}")
-		return groups
-	else:
-		logging.error("Failed to leave group")
-
-
 def is_group_leader(leader_id, self_id):
 	"""A simple way to check if current node is leader or not.
 	Args:
@@ -484,7 +480,7 @@ def create_group(group_name, nds_ip) -> Optional[Group]:
 			"leader_id": 0,
 			"vector_clock": 0,
 			"peers": this_node,
-			"nds_ip": nds_ip
+			"nds_ip": nds_ip,
 		}
 		logging.info(f"Created group {group_name} with ID: {group_id}")
 		return Group(group_name, group_id, response.data["leader_ip"])

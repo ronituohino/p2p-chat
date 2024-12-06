@@ -1,1 +1,1 @@
-from .structs import Group, Node, NDSResponse, Response
+from .structs import Group, Node, Response, Message

@@ -7,98 +7,96 @@ from dataclasses import dataclass
 
 
 @dataclass
-class Group:
-	"""
-	A class used to represent a Group.
-
-	Attributes
-	----------
-	name : str
-		The name of the group. This field is mandatory.
-	group_id : str
-		The unique identifier of the group. This field is mandatory.
-	leader_ip : str
-		The IP address of the group leader. This field is mandatory.
-	"""
-
-	name: str
-	group_id: str
-	leader_ip: str
-
-
-@dataclass
 class Node:
 	"""
-	A class used to represent any Node (e.g. another client).
+	A class used to represent any Node (i.e. another client).
 
 	Attributes
 	----------
+	node_id: str
+		The id that is set to the Node withing a Group.
 	name : str
-		The name of the node. This field is mandatory.
+		The name of the Node.
+	ip : str
+		The IP address of the Node.
 	"""
 
+	node_id: str
 	name: str
+	ip: str
 
 
 @dataclass
-class NDSResponse:
+class Group:
 	"""
-	A class for transforming dict type data received from NDS.
+	A class used to represent a Group (i.e. a chat room).
 
 	Attributes
 	----------
-	response : dict
-		The entire response dictionary from NDS.
+	group_id : str
+		The unique identifier of the group.
+	name : str
+		The name of the group.
+	leader_ip : str
+		The group leader IP, which points to a Node.
+	vector_clock : int
+		The current vector clock value used to keep track of message order.
+	peers : dict
+		The Nodes within the Group, key is the id of the Node. This include self.
+	nds_ip : str
+		The IP address of the NDS that this Group is registered to.
+	self_id : str
+		The id that this Node has within this Group.
 	"""
 
-	response: dict
+	group_id: str
+	name: str
+	leader_ip: str
+	vector_clock: int
+	peers: dict[str, Node]
+	nds_ip: str
 
-	@property
-	def success(self) -> bool:
-		return self.response.get("success", False)
 
-	@property
-	def message(self) -> str:
-		return self.response.get("message", "")
+@dataclass
+class Message:
+	"""
+	A class used to represent a single Message sent in the Group.
 
-	@property
-	def data(self) -> dict:
-		return self.response.get("data", {})
+	Attributes
+	----------
+	message_id : str
+		The unique id assigned to the message.
+	message : str
+		The content of the message.
+	group_id: str
+		The group in which the message was sent in.
+	source_id : str
+		The id of the Node that sent the message.
+	vector_clock : int
+		The vector clock value for this message, used in ordering them.
+	"""
+
+	message_id: str
+	message: str
+	group_id: str
+	source_id: str
+	vector_clock: int
 
 
 class Response(dict):
 	"""
-	Represents a response object.
+	Represents a generic response object. Make sure this matches with nds/structs/Response.
 
 	Attributes
 	----------
-	success : bool
+	ok : bool
 		Indicates whether the response was successful or not.
 	message : str
 		The message associated with the response.
 	data : dict
 		The data associated with the response.
-
-	Methods
-	-------
-		to_dict(): Converts the Response object to a dictionary.
 	"""
 
-	def __init__(self, success=None, message=None, data=None):
-		super().__init__(success=success, message=message, data=data)
-		self.success = success
-		self.message = message
-		self.data = data
-
-	def __getattr__(self, item):
-		try:
-			return self[item]
-		except KeyError:
-			raise AttributeError(f"'Response' object has no attribute '{item}'")
-
-	def __setattr__(self, key, value):
-		self[key] = value
-		super().__setattr__(key, value)
-
-	def __repr__(self):
-		return f"Response(success={self.success}, message='{self.message}', data={self.data})"
+	ok: bool
+	message: str
+	data: dict
