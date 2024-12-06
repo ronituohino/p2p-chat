@@ -185,10 +185,10 @@ def request_to_join_group(leader_ip, group_id) -> list[Node] | None:
 		leader = rpc_client.get_proxy()
 		response = JoinGroupResponse(munchify(leader.join_group(group_id, self_name)))
 		if response.ok:
+			response.group.self_id = response.assigned_peer_id
 			groups[group_id] = response.group
-			logging.info(
-				f"Joined group with Peer ID: {response.data['assigned_peer_id']}"
-			)
+			logging.info(f"Joined group with Peer ID: {response.assigned_peer_id}")
+			logging.info(f"Joined group: {response.group}")
 			# threading.Thread(
 			# target=send_heartbeat_to_leader, args=(group_id,), daemon=True
 			# ).start()
