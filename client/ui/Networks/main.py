@@ -66,7 +66,7 @@ class Networks(Static):
 
 	async def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
 		"""Called when any node is expanded in the tree"""
-		if "leader_ip" in event.node.data:
+		if isinstance(event.node.data, NDS_Group):
 			"""
 			If the node is a group, join it
 			First leave all other groups that are open (should only be one)
