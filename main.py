@@ -10,7 +10,7 @@ from client.service import (
 import sys
 import logging
 
-from structs.client import Group
+from structs.client import Node, Group
 ### CLIENT ENTRYPOINT
 
 
@@ -39,13 +39,13 @@ class Networking:
 	# Called when contacting leader of group to join
 	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
 	async def join_group(self, leader_ip) -> Group | None:
-		peers = request_to_join_group(leader_ip)
-		return peers
+		group = request_to_join_group(leader_ip)
+		return group
 
 	# Called when contacting leader of group to leave
 	## TODO: SERVER SIDE IMPLEMENTATION, UI is ready
-	async def leave_group(self, group) -> None:
-		leave_group(group)
+	async def leave_group(self, group_id) -> None:
+		leave_group(group_id)
 
 	# TODOOO!!!
 	async def send_message(self, msg, group_id):

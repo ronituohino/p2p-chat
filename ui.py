@@ -38,24 +38,36 @@ class StubNetworking:
 		return Group(
 			name=name,
 			group_id="-1",
-			leader_ip="temp_ip",
+			leader_id="0",
 			self_id="0",
 			vector_clock=0,
-			peers={0: Node(node_id=0, name="me", ip="123")},
+			peers={0: Node(node_id=0, name="jakey", ip="123")},
 			nds_ip="213",
 		)
 
 	# Called when contacting leader of network to join
 	## either ip of leader, or nds_id + group_id
-	async def join_group(self, group_id, leader_ip) -> list[Node]:
+	async def join_group(self, leader_ip) -> Group | None:
 		await asyncio.sleep(1)
-		print("Network: joined group_id - ", group_id, "leader ip - ", leader_ip)
-		return [Node("Jaakko"), Node("p3kk4"), Node("kklP")]
+		print("Network: joined group, leader ip - ", leader_ip)
+		return Group(
+			group_id="123",
+			name="bestgroup!",
+			nds_ip="123124",
+			leader_id="0",
+			self_id="1",
+			peers={
+				0: Node(node_id="0", ip="123", name="Jaakko"),
+				1: Node(node_id="1", ip="551", name="p3kk4"),
+				2: Node(node_id="2", ip="413", name="kklP"),
+			},
+			vector_clock=12,
+		)
 
 	# Called when contacting leader of network to leave
-	async def leave_group(self, group_id, leader_ip) -> None:
+	async def leave_group(self, group_id) -> None:
 		await asyncio.sleep(1)
-		print("Network: left group_id - ", group_id, "leader ip - ", leader_ip)
+		print("Network: left group_id - ", group_id)
 
 	async def send_message(self, msg, group_id):
 		logging.info("Message sent: ", msg)

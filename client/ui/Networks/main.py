@@ -38,7 +38,7 @@ class Networks(Static):
 			nds = next(nds for nds in tree.root.children if nds.label.plain == nds_ip)
 			group_node = nds.add(label=group.name, data=group, expand=True)
 			self.close_other_groups(group_node)
-			self.add_peers(group_node, list(group.peers.values()))
+			self.add_peers(group_node, group)
 			self.app.chat.set_active_group(group)
 		except StopIteration:
 			self.app.notify("NDS not found!", severity="warning", timeout=3)
@@ -48,20 +48,21 @@ class Networks(Static):
 		tree = self.query_one("Tree")
 		self.network_labels = [nds.label.plain for nds in tree.root.children]
 
-	async def join_group(self, group_node, group: NDS_Group):
+	async def join_group(self, group_node, group: Group):
 		"""Join a group by contacting the leader, then add peers to the tree"""
-		peers = await self.app.net.join_group(group.leader_ip)
-		if peers:
-			self.add_peers(group_node, peers)
+		group = await self.app.net.join_group(group.leader_ip)
+		if group:
+			self.add_peers(group_node, group)
 			self.app.chat.set_active_group(group)
+			self.app.chat.chat_log.clear()
 
-	def add_peers(self, group_node, peers):
-		for peer_node in peers:
+	def add_peers(self, group_node, group: Group):
+		for peer_node in list(group.peers.values()):
 			group_node.add_leaf(peer_node.name)
 
 	async def leave_group(self, group_node, group: NDS_Group):
 		"""Leave a group by contacting the leader, then remove peers from the tree"""
-		await self.app.net.leave_group(group)
+		await self.app.net.leave_group(group.group_id)
 		group_node.remove_children()
 
 	async def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:

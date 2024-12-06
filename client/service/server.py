@@ -165,12 +165,12 @@ def create_group(group_name, nds_ip) -> Group | None:
 		return None
 
 
-def leave_group(group: Group):
+def leave_group(group_id: str):
 	"""A way for client to leave a group."""
 
 	active = get_active_group()
-	if not active or active.group_id != group.group_id:
-		logging.error(f"Cannot leave group {group.group_id} because it's not active")
+	if not active or active.group_id != group_id:
+		logging.error(f"Cannot leave group {group_id} because it's not active")
 		return
 
 	# If we are the leader of the group
@@ -183,7 +183,7 @@ def leave_group(group: Group):
 	set_active_group(None)
 
 
-def request_to_join_group(leader_ip) -> list[Node] | None:
+def request_to_join_group(leader_ip) -> Group | None:
 	"""
 	Args:
 		leader_ip (str): An IP addr. of the leader ip
@@ -207,7 +207,7 @@ def request_to_join_group(leader_ip) -> list[Node] | None:
 			# target=send_heartbeat_to_leader, args=(group_id,), daemon=True
 			# ).start()
 			# synchronize_with_leader(group_id)
-			return list(response.group.peers.values())
+			return response.group
 		else:
 			logging.error(f"Failed to join group with error: {response.message}")
 			return None
