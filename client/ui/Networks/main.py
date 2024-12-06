@@ -56,7 +56,7 @@ class Networks(Static):
 		self.app.chat.set_active_group(group)
 
 	def add_peers(self, group_node, peers):
-		for _, peer_nodes in peers.items():
+		for _, peer_nodes in peers:
 			group_node.add_leaf(peer_nodes.name)
 
 	async def leave_group(self, group_node, group: NDS_Group):
