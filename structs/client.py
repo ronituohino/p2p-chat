@@ -104,4 +104,4 @@ class JoinGroupResponse(Response):
 @dataclass_json
 @dataclass
 class ReceiveMessageResponse(Response):
-	pass
+	message: str  # a status message, not the actual text that was sent
