@@ -307,17 +307,19 @@ def send_message_to_peer(client, msg, msg_id, group_id):
 		source_id (str): ID of the source peer.
 		destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
 	"""
-	source_id = get_active_group().self_id
-	peer = client.get_proxy()
-	response: ReceiveMessageResponse = ReceiveMessageResponse.from_json(
-		peer.receive_message(
-			msg=msg, msg_id=msg_id, group_id=group_id, source_id=source_id
+	try:
+		source_id = get_active_group().self_id
+		peer = client.get_proxy()
+		response: ReceiveMessageResponse = ReceiveMessageResponse.from_json(
+			peer.receive_message(
+				msg=msg, msg_id=msg_id, group_id=group_id, source_id=source_id
+			)
 		)
-	)
-	if response.ok:
-		logging.info(f"Message sent, here is response: {response.message}")
-	else:
-		logging.info(f"Failed to send message: {response.message}")
+		if not response.ok:
+			logging.info(f"Failed to send message: {response.message}")
+	except BaseException as e:
+		logging.info(f"Failed to send message: {e}")
+		return
 
 
 @dispatcher.public
