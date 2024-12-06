@@ -306,7 +306,13 @@ def send_message_to_peer(client, msg, msg_id, group_id, destination_id=-1):
 	source_id = groups[group_id].self_id
 	remote_server = client.get_proxy()
 	response: ReceiveMessageResponse = ReceiveMessageResponse.from_json(
-		remote_server.receive_message(msg, msg_id, group_id, source_id, destination_id)
+		remote_server.receive_message(
+			msg=msg,
+			msg_id=msg_id,
+			group_id=group_id,
+			source_id=source_id,
+			destination_id=destination_id,
+		)
 	)
 	if response.ok:
 		logging.info(f"Message sent, here is response: {response.message}")
