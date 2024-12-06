@@ -16,6 +16,14 @@ addresses of the leaders.
 
 ## TODO
 
+- Liveness ping from client nodes to the active group leader
+  - If leader does not hear from a certain node in some time, it assumes they have left the group
+  - Also attach vector clock syncs to this
+
+- Leader election system refactor and integration
+
+- Message reordering
+
 ## Deployment
 
 Software is deployed on the VMs provided by the faculty.  
