@@ -22,7 +22,7 @@ from structs.client import (
 	HeartbeatResponse,
 )
 from structs.generic import Response
-from structs.nds import FetchGroupResponse, CreateGroupResponse
+from structs.nds import FetchGroupResponse, CreateGroupResponse, NDS_HeartbeatResponse
 
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
@@ -436,9 +436,11 @@ def start_heartbeat():
 	global heartbeat
 	if heartbeat:
 		# Kill existing heartbeat
+		logging.info("Killing heartbeat.")
 		heartbeat.raise_exception()
 		heartbeat.join()
 
+	logging.info("Starting heartbeat sending.")
 	heartbeat = threading.Thread(target=heartbeat_thread, daemon=True)
 	heartbeat.start()
 
@@ -455,6 +457,7 @@ def heartbeat_thread():
 					try:
 						rpc_client = create_rpc_client(leader_ip, node_port)
 						leader = rpc_client.get_proxy()
+						logging.info("Sengin heartbeat to leader.")
 						response: HeartbeatResponse = HeartbeatResponse.from_json(
 							leader.receive_heartbeat(active.self_id)
 						)
@@ -479,7 +482,8 @@ def heartbeat_thread():
 				rpc_client = nds_servers[active.nds_ip]
 				try:
 					nds = rpc_client.get_proxy()
-					response: HeartbeatResponse = HeartbeatResponse.from_json(
+					logging.info("Sengin heartbeat to NDS.")
+					response: NDS_HeartbeatResponse = NDS_HeartbeatResponse.from_json(
 						nds.receive_heartbeat(active.group_id)
 					)
 					if not response.ok:

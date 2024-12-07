@@ -15,7 +15,7 @@ from structs.nds import (
 	NDS_Group,
 	FetchGroupResponse,
 	CreateGroupResponse,
-	HeartbeatResponse,
+	NDS_HeartbeatResponse,
 )
 from structs.generic import Response
 
@@ -95,9 +95,11 @@ def receive_heartbeat(group_id):
 	if group_id in groups and group_id in last_leader_response:
 		logging.info(f"Group {group_id} heartbeat received.")
 		last_leader_response[group_id] = 0
-		return HeartbeatResponse(ok=True, message="ok").to_json()
+		return NDS_HeartbeatResponse(ok=True, message="ok").to_json()
 	else:
-		return HeartbeatResponse(ok=False, message="group-deleted-womp-womp").to_json()
+		return NDS_HeartbeatResponse(
+			ok=False, message="group-deleted-womp-womp"
+		).to_json()
 
 
 ### TASKS
@@ -124,12 +126,11 @@ def overseer_thread():
 				else:
 					last_leader_response[group_id] = new_val
 
-				for group_id in groups_to_delete:
-					del last_leader_response[group_id]
-					del groups[group_id]
-					logging.info(
-						f"Group {group_id} deleted -- no heartbeat from leader"
-					)
+			for group_id in groups_to_delete:
+				del last_leader_response[group_id]
+				del groups[group_id]
+				logging.info(f"Group {group_id} deleted -- no heartbeat from leader")
+
 			time.sleep(overseer_interval)
 
 	finally:

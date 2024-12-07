@@ -47,7 +47,7 @@ class CreateGroupResponse(Response):
 
 @dataclass_json
 @dataclass
-class HeartbeatResponse(Response):
+class NDS_HeartbeatResponse(Response):
 	"""Represents a heartbeat message sent back to a leader of a Group from NDS.
 
 	Attributes
