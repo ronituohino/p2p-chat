@@ -160,6 +160,8 @@ def create_group(group_name, nds_ip) -> Group | None:
 			)
 			set_active_group(this_group)
 
+			start_heartbeat()
+
 			logging.info(f"Created group, {group_name}, with ID: {group_id}")
 			return this_group
 		else:
@@ -432,13 +434,13 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 
 def start_heartbeat():
 	global heartbeat
+	if heartbeat:
+		# Kill existing heartbeat
+		heartbeat.raise_exception()
+		heartbeat.join()
+
 	heartbeat = threading.Thread(target=heartbeat_thread, daemon=True)
 	heartbeat.start()
-
-
-def kill_heartbeat():
-	heartbeat.raise_exception()
-	heartbeat.join()
 
 
 def heartbeat_thread():

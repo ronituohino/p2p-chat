@@ -56,6 +56,8 @@ def serve(ip="0.0.0.0", port=nds_port):
 	wsgi_server = gevent.pywsgi.WSGIServer((ip, port), transport.handle)
 	gevent.spawn(wsgi_server.serve_forever)
 	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
+	init_overseer()
+
 	status = f"NDS listening at {ip} on port {port}."
 	print(status)
 	logging.info(status)
@@ -112,17 +114,22 @@ def overseer_thread():
 	try:
 		while True:
 			logging.info("Overseeing groups.")
+			groups_to_delete = []
+
 			for group_id in last_leader_response.keys():
 				new_val = last_leader_response[group_id] + 1
 				if new_val > 10:
 					# If have not received heartbeat from group leader in 10 cycles, delete Group
+					groups_to_delete.append(group_id)
+				else:
+					last_leader_response[group_id] = new_val
+
+				for group_id in groups_to_delete:
 					del last_leader_response[group_id]
 					del groups[group_id]
 					logging.info(
 						f"Group {group_id} deleted -- no heartbeat from leader"
 					)
-				else:
-					last_leader_response[group_id] = new_val
 			time.sleep(overseer_interval)
 
 	finally:
