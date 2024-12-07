@@ -55,7 +55,6 @@ networking = None
 # Global variables
 nds_servers: dict[str, RPCClient] = {}  # key is nds_ip
 active_group: Group = None  # we can only be in one group at a time
-heartbeat: threading.Thread = None  # thread that sends rpc to leader every now and then
 
 
 def get_active_group() -> Group:
@@ -431,24 +430,34 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 
 ### HEARTBEAT
 
+heartbeat: threading.Thread = None  # thread that sends rpc to leader every now and then
+heartbeat_counter = 0  # set to the id of the heartbeat
+heartbeat_kill_flags = set()
+
 
 def start_heartbeat():
 	global heartbeat
+	global heartbeat_counter
 	if heartbeat:
 		# Kill existing heartbeat
-		logging.info("Killing heartbeat.")
-		heartbeat.raise_exception()
-		heartbeat.join()
+		logging.info(f"Killing heartbeat {heartbeat_counter}")
+		heartbeat_kill_flags.add(heartbeat_counter)
 
 	logging.info("Starting heartbeat sending.")
-	heartbeat = threading.Thread(target=heartbeat_thread, daemon=True)
+	heartbeat_counter += 1
+	heartbeat = threading.Thread(
+		target=heartbeat_thread, args=heartbeat_counter, daemon=True
+	)
 	heartbeat.start()
 
 
-def heartbeat_thread():
+def heartbeat_thread(hb_id: int):
 	# Wrap in try clause, so that can be closed with .raise_exception()
 	try:
 		while True:
+			if hb_id in heartbeat_kill_flags:
+				raise InterruptedError
+
 			active = get_active_group()
 			# If this node not leader, send heartbeat to leader
 			if active.self_id != active.leader_id:

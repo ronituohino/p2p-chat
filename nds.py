@@ -102,7 +102,7 @@ def receive_heartbeat(group_id):
 		).to_json()
 
 
-### TASKS
+### OVERSEEING
 
 
 def init_overseer():
