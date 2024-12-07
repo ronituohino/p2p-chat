@@ -533,7 +533,7 @@ overseer: threading.Thread = None  # thread that sends rpc to leader every now a
 overseer_counter = 0  # set to the id of the heartbeat
 overseer_kill_flags = set()
 
-last_node_response = dict[
+last_node_response: dict[
 	str, int
 ] = {}  # key is node_id, used to check when last heard from node, value is the overseer cycles
 
