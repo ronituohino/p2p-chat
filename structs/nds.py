@@ -43,3 +43,17 @@ class FetchGroupResponse(Response):
 @dataclass
 class CreateGroupResponse(Response):
 	group: NDS_Group
+
+
+@dataclass_json
+@dataclass
+class HeartbeatResponse(Response):
+	"""Represents a heartbeat message sent back to a leader of a Group from NDS.
+
+	Attributes
+	----------
+	message : str
+		The response to the heartbeat to indicate different statuses.
+	"""
+
+	message: str  # a status message

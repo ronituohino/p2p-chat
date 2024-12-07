@@ -46,6 +46,8 @@ class Group:
 		The group leader id, which points to a Node.
 	self_id : int
 		The id that this Node has within this Group.
+		Constant through the lifetime of a group.
+		Used in leader election to prioritise Nodes that have been in the Group the longest.
 	vector_clock : int
 		The current vector clock value used to keep track of message order.
 	peers : dict
@@ -105,3 +107,19 @@ class JoinGroupResponse(Response):
 @dataclass
 class ReceiveMessageResponse(Response):
 	message: str  # a status message, not the actual text that was sent
+
+
+@dataclass_json
+@dataclass
+class HeartbeatResponse(Response):
+	"""Represents a heartbeat message sent back from a leader
+
+	Attributes
+	----------
+	message : str
+		The response to the heartbeat to indicate different statuses.
+	"""
+
+	message: str  # a status message
+	peers: dict[int, Node]  # in case new people joined the group, inform others
+	vector_clock: int

@@ -19,6 +19,7 @@ from structs.client import (
 	Message,
 	JoinGroupResponse,
 	ReceiveMessageResponse,
+	HeartbeatResponse,
 )
 from structs.generic import Response
 from structs.nds import FetchGroupResponse, CreateGroupResponse
@@ -43,6 +44,9 @@ def get_ip():
 node_port = 50001
 nds_port = 50002
 
+heartbeat_min_interval = 2
+heartbeat_max_interval = 4
+
 # Runtime constants
 dispatcher = RPCDispatcher()
 self_name = None
@@ -51,6 +55,7 @@ networking = None
 # Global variables
 nds_servers: dict[str, RPCClient] = {}  # key is nds_ip
 active_group: Group = None  # we can only be in one group at a time
+heartbeat: threading.Thread = None  # thread that sends rpc to leader every now and then
 
 
 def get_active_group() -> Group:
@@ -203,9 +208,9 @@ def request_to_join_group(leader_ip) -> Group | None:
 			response.group.self_id = response.assigned_peer_id
 			set_active_group(response.group)
 			logging.info(f"Joined group: {response.group}")
-			# threading.Thread(
-			# target=send_heartbeat_to_leader, args=(group_id,), daemon=True
-			# ).start()
+
+			start_heartbeat()
+
 			# synchronize_with_leader(group_id)
 			return response.group
 		else:
@@ -254,6 +259,8 @@ def join_group(peer_name):
 			node_id=assigned_peer_id, name=peer_name, ip=peer_ip
 		)
 
+		# TODO: UI should reflect this
+
 		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 
 		return JoinGroupResponse(
@@ -266,7 +273,7 @@ def join_group(peer_name):
 		).to_json()
 
 
-### THE THINGS ABOVE WORK NOW
+### MESSAGING
 
 
 def send_message(msg) -> bool:
@@ -420,7 +427,81 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 	return True
 
 
-### IM WORKING ON THE THINGS BETWEEN
+### HEARTBEAT
+
+
+def start_heartbeat():
+	global heartbeat
+	heartbeat = threading.Thread(target=heartbeat_thread, daemon=True)
+	heartbeat.start()
+
+
+def kill_heartbeat():
+	heartbeat.raise_exception()
+	heartbeat.join()
+
+
+def heartbeat_thread():
+	# Wrap in try clause, so that can be closed with .raise_exception()
+	try:
+		while True:
+			active = get_active_group()
+			# If this node not leader, send heartbeat to leader
+			if active.self_id != active.leader_id:
+				leader_ip = active.peers[active.leader_id].ip
+				if leader_ip:
+					try:
+						rpc_client = create_rpc_client(leader_ip, node_port)
+						leader = rpc_client.get_proxy()
+						response: HeartbeatResponse = HeartbeatResponse.from_json(
+							leader.receive_heartbeat(active.self_id)
+						)
+						if response.ok:
+							active.peers = response.peers
+						else:
+							logging.warning("Leader did not acknowledge heartbeat.")
+							# leader_election(group_id=group_id)
+					except Exception as e:
+						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
+						# leader_election(group_id=group_id)
+				else:
+					logging.error("Leader IP not found, initiating election...")
+					# leader_election(group_id=group_id)
+
+				interval = random.uniform(
+					heartbeat_min_interval, heartbeat_max_interval
+				)
+				time.sleep(interval)
+			else:
+				# This node is leader, send heartbeat to NDS
+				rpc_client = nds_servers[active.nds_ip]
+				try:
+					nds = rpc_client.get_proxy()
+					response: HeartbeatResponse = HeartbeatResponse.from_json(
+						nds.receive_heartbeat(active.group_id)
+					)
+					if not response.ok:
+						if response.message == "group-deleted-womp-womp":
+							logging.error("NDS deleted the group :(")
+							# TODO: UI should reflect this
+						else:
+							logging.error("NDS rejected heartbeat?")
+				except BaseException as e:
+					logging.error(f"EXC: Failed to send heartbeat to NDS: {e}")
+	finally:
+		logging.info("Killing heartbeat.")
+
+
+@dispatcher.public
+def receive_heartbeat(peer_id):
+	active = get_active_group()
+	if peer_id in active.peers:
+		return HeartbeatResponse(
+			ok=True, message="ok", peers=active.peers, vector_clock=active.vector_clock
+		).to_json()
+
+
+### THINGS BELOW ARE NOT INTEGRATED YET
 
 
 def store_message(msg, msg_id, group_id, source_id, vector_clock):
@@ -437,97 +518,6 @@ def store_message(msg, msg_id, group_id, source_id, vector_clock):
 		}
 	)
 	message_store[group_id] = messages
-
-
-def get_messages(group_id):
-	"""Retrieve all messages for a given group_id."""
-	messages = message_store.get(group_id, [])
-	return messages
-
-
-def get_group_info(group_id):
-	"""Return (
-	  group_name: str,
-	  self_id: id,
-	  leader_id: id,
-	  vector_clock: id,
-	  peers: Dict
-	)"""
-	group = groups.get(group_id, {})
-	if not group:
-		logging.error(f"Group with ID {group_id} does not exist.")
-
-	return (
-		group.get("group_name", ""),
-		group.get("self_id", ""),
-		group.get("leader_id", ""),
-		group.get("vector_clock", 0),
-		group.get("peers", {}),
-	)
-
-
-def update_group_info(group_id, group_name, self_id, leader_id, vector_clock, peers):
-	"""Updates (
-	  group_name: str,
-	  self_id: id,
-	  leader_id: id,
-	  vector_clock: id,
-	  peers: Dict
-	)"""
-	groups[group_id] = {
-		"group_name": group_name,
-		"self_id": self_id,
-		"leader_id": leader_id,
-		"vector_clock": vector_clock,
-		"peers": peers,
-	}
-
-
-def get_group_peers(group_id):
-	"""Return all peers related to the group"""
-	group = groups.get(group_id, {})
-	if not group:
-		raise ValueError(f"Group with ID {group_id} does not exist.")
-	return group.get("peers", {})
-
-
-def send_heartbeat_to_leader(group_id):
-	_, self_id, leader_id, _, peers = get_group_info(group_id)
-	while True:
-		leader_ip = peers[leader_id].get("ip", None)
-		if leader_ip:
-			try:
-				rpc_client = create_rpc_client(leader_ip, node_port)
-				remote_server = rpc_client.get_proxy()
-				response = remote_server.receive_heartbeat(group_id, self_id)
-				response = Response(**response)
-				if not response.success:
-					leader_election(group_id=group_id)
-					logging.warning("Leader did not acknowledge heartbeat.")
-			except Exception as e:
-				logging.error(f"Error sending hearbeat to leader: {e}")
-				leader_election(group_id=group_id)
-		else:
-			logging.error("Leader IP addr. not found. Initiating election...")
-			leader_election(group_id=group_id)
-
-		min_interval = 2
-		max_interval = 4
-		interval = random.uniform(min_interval, max_interval)
-		time.sleep(interval)
-
-
-def get_peer_ip(peer_id, group_id):
-	peers = get_group_peers(group_id)
-	peer = peers.get(peer_id)
-	return peer.get("ip", None)
-
-
-@dispatcher.public
-def receive_heartbeat(group_id, peer_id):
-	peers = get_group_peers(group_id)
-	if peer_id in peers:
-		return Response(success=True, message="Heartbeat received")
 
 
 def leader_election(group_id):
