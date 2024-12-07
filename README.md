@@ -3,7 +3,7 @@
 Group project for Distributed Systems course.
 
 [Kozheen Taher Esa](https://github.com/astranero)  
-[Joonas Ahovalli](https://github.com/joonas-a) 
+[Joonas Ahovalli](https://github.com/joonas-a)  
 [Roni Tuohino](https://github.com/ronituohino)
 
 A peer-to-peer (P2P) chat application. The main functionality is creating
