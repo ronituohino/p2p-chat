@@ -47,6 +47,9 @@ nds_port = 50002
 heartbeat_min_interval = 2
 heartbeat_max_interval = 4
 
+overseer_interval = 1
+overseer_cycles_timeout = 10
+
 # Runtime constants
 dispatcher = RPCDispatcher()
 self_name = None
@@ -160,6 +163,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 			set_active_group(this_group)
 
 			start_heartbeat()
+			start_overseer()
 
 			logging.info(f"Created group, {group_name}, with ID: {group_id}")
 			return this_group
@@ -259,6 +263,9 @@ def join_group(peer_name):
 		group.peers[assigned_peer_id] = Node(
 			node_id=assigned_peer_id, name=peer_name, ip=peer_ip
 		)
+
+		# Overseeing
+		last_node_response[assigned_peer_id] = 0
 
 		# TODO: UI should reflect this
 
@@ -520,6 +527,64 @@ def receive_heartbeat(peer_id):
 		).to_json()
 
 
+### OVERSEEING
+
+overseer: threading.Thread = None  # thread that sends rpc to leader every now and then
+overseer_counter = 0  # set to the id of the heartbeat
+overseer_kill_flags = set()
+
+last_node_response = dict[
+	str, int
+] = {}  # key is node_id, used to check when last heard from node, value is the overseer cycles
+
+
+def start_overseer():
+	"""Starts overseeing thread, used by leader to monitor heartbeats from followers, and deletes those who are not active"""
+	global overseer
+	global overseer_counter
+	global overseer_kill_flags
+
+	if overseer:
+		# Kill existing heartbeat
+		logging.info(f"Killing overseer {overseer_counter}")
+		heartbeat_kill_flags.add(overseer_counter)
+
+	logging.info("Starting overseer.")
+	overseer_counter += 1
+	overseer = threading.Thread(
+		target=overseer_thread, args=(overseer_counter,), daemon=True
+	)
+	overseer.start()
+
+
+def overseer_thread(ov_id: int):
+	try:
+		while True:
+			logging.info(f"OV with id {ov_id}")
+			if ov_id in overseer_kill_flags:
+				raise InterruptedError
+
+			nodes_to_delete = []
+			for node_id in last_node_response.keys():
+				new_val = last_node_response[node_id] + 1
+				if new_val > 10:
+					# If have not received heartbeat from group leader in 10 cycles, delete Group
+					nodes_to_delete.append(node_id)
+				else:
+					last_node_response[node_id] = new_val
+
+			for node_id in nodes_to_delete:
+				del last_node_response[node_id]
+				active = get_active_group()
+				del active.peers[node_id]
+				logging.info(f"Node {node_id} deleted -- no heartbeat from node")
+
+			time.sleep(overseer_interval)
+
+	finally:
+		logging.info("Killing overseer.")
+
+
 ### THINGS BELOW ARE NOT INTEGRATED YET
 
 
@@ -703,18 +768,6 @@ def election_message(group_id, candidate_id, candidate_vc):
 		return Response(success=True, message="ACK")
 
 
-def is_group_leader(leader_id, self_id):
-	"""A simple way to check if current node is leader or not.
-	Args:
-		leader_id (str): ID of the leader
-		self_id (str): ID of the current node
-
-	Returns:
-		bool: True if the current node is the leader.
-	"""
-	return leader_id == self_id
-
-
 def broadcast_new_leader(group_id):
 	_, self_id, _, _, peers = get_group_info(group_id)
 	for peer_id, peer_info in peers.items():
@@ -736,18 +789,6 @@ def update_leader(group_id, self_id):
 		return Response(success=True, message="Leader has been updated.")
 	else:
 		return Response(success=False, message="Leader was not updated.")
-
-
-@dispatcher.public
-def update_peers(group_id, updated_peers):
-	group = groups.get(group_id, {})
-	if group:
-		group["peers"] = updated_peers
-		groups[group_id] = group
-		logging.info("Peer list updated.")
-		return Response(success=True, message="Peer list has been updated.")
-	else:
-		return Response(success=False, message="Group not found.")
 
 
 if __name__ == "__main__":
