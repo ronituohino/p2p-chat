@@ -16,16 +16,14 @@ addresses of the leaders.
 
 ## TODO
 
-- Liveness ping from client nodes to the active group leader
-  - If leader does not hear from a certain node in some time, it assumes they have left the group
-  - Also attach vector clock syncs to this
 - Leader election system refactor and integration
-- Message reordering
+- Message reordering with vector clocks, heartbeat system carries this info
 
 Optional:
 
 - Fix tests
-- Liveness ping from leaders to NDS, so that NDS can remove groups which are assumed to be dead according to a timeout
+- 2-way handshake when adding NDS to assure that client can accept incoming requests as well
+  - Right now you can start the group chat and do whatever, but you will get no info from others if for example firewall blocks the RPC calls
 
 ## Deployment
 

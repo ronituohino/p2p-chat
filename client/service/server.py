@@ -288,7 +288,6 @@ def send_message(msg) -> bool:
 	"""Send a message to be broadcasted by leader, called from ui.
 	Args:
 		msg (str): the message.
-		group_id (str): UID of the group.
 
 	Returns:
 		bool: If message was sent successfully.
@@ -329,8 +328,6 @@ def send_message_to_peer(client, msg, msg_id, group_id):
 		msg (str): the message.
 		msg_id (str): ID of the message.
 		group_id (str): UID of the group.
-		source_id (str): ID of the source peer.
-		destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
 	"""
 	try:
 		source_id = get_active_group().self_id
@@ -361,7 +358,6 @@ def receive_message(msg, msg_id, group_id, source_id):
 		msg_id (str): ID of the message.
 		group_id (str): UID of the group.
 		source_id (str): ID of the source peer.
-		destination_id (str, optional): A node that we wish to send message to. Defaults to -1.
 
 	Returns:
 		response: success / fail
@@ -403,8 +399,12 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 
 	Args:
 		msg (str): A message that user want to send.
+		msg_id (str): ID of the message.
 		group_id (str): UID of the group.
 		source_id (str): Peer ID where the message came from.
+
+	Returns:
+		bool: If message was sent successfully.
 	"""
 	group = get_active_group()
 	peers = list(group.peers.values())
@@ -437,7 +437,9 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 
 ### HEARTBEAT
 
-heartbeat: threading.Thread = None  # thread that sends rpc to leader every now and then
+heartbeat: threading.Thread = (
+	None  # thread that sends rpc to leader or NDS every now and then
+)
 heartbeat_counter = 0  # set to the id of the heartbeat
 heartbeat_kill_flags = set()
 
