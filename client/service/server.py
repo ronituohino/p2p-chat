@@ -504,7 +504,7 @@ def heartbeat_thread(hb_id: int):
 				rpc_client = nds_servers[active.nds_ip]
 				try:
 					nds = rpc_client.get_proxy()
-					logging.info("Sengin heartbeat to NDS.")
+					logging.info("Sending heartbeat to NDS.")
 					response: NDS_HeartbeatResponse = NDS_HeartbeatResponse.from_json(
 						nds.receive_heartbeat(active.group_id)
 					)
@@ -552,6 +552,7 @@ last_node_response: dict[
 
 
 def start_overseer():
+	logging.info("start_overseer called")
 	"""Starts overseeing thread, used by leader to monitor heartbeats from followers, and deletes those who are not active"""
 	global overseer
 	global overseer_counter
