@@ -438,6 +438,8 @@ heartbeat_kill_flags = set()
 def start_heartbeat():
 	global heartbeat
 	global heartbeat_counter
+	global heartbeat_kill_flags
+
 	if heartbeat:
 		# Kill existing heartbeat
 		logging.info(f"Killing heartbeat {heartbeat_counter}")
@@ -446,15 +448,18 @@ def start_heartbeat():
 	logging.info("Starting heartbeat sending.")
 	heartbeat_counter += 1
 	heartbeat = threading.Thread(
-		target=heartbeat_thread, args=heartbeat_counter, daemon=True
+		target=heartbeat_thread, args=(heartbeat_counter,), daemon=True
 	)
 	heartbeat.start()
 
 
 def heartbeat_thread(hb_id: int):
+	global heartbeat_kill_flags
+
 	# Wrap in try clause, so that can be closed with .raise_exception()
 	try:
 		while True:
+			logging.info(f"HB with id {hb_id}")
 			if hb_id in heartbeat_kill_flags:
 				raise InterruptedError
 
