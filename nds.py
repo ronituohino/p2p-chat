@@ -51,13 +51,14 @@ last_leader_response: dict[
 ] = {}  # key is group_id, used to check when last heard from group, value is the overseer cycles
 
 
-def serve(ip="0.0.0.0", port=50002):
+def serve(ip="0.0.0.0", port=nds_port):
 	transport = CustomWSGITransport(queue_class=gevent.queue.Queue)
 	wsgi_server = gevent.pywsgi.WSGIServer((ip, port), transport.handle)
 	gevent.spawn(wsgi_server.serve_forever)
 	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
-	init_overseer()
-	logging.info(f"NDS listening at {ip} on port {port}")
+	status = f"NDS listening at {ip} on port {port}."
+	print(status)
+	logging.info(status)
 	rpc_server.serve_forever()
 
 
