@@ -466,7 +466,6 @@ def heartbeat_thread(hb_id: int):
 	# Wrap in try clause, so that can be closed with .raise_exception()
 	try:
 		while True:
-			logging.info(f"HB with id {hb_id}")
 			if hb_id in heartbeat_kill_flags:
 				raise InterruptedError
 
@@ -484,8 +483,8 @@ def heartbeat_thread(hb_id: int):
 						response: HeartbeatResponse = HeartbeatResponse.from_json(
 							leader.receive_heartbeat(active.self_id)
 						)
-						logging.info(f"Got response: {response}")
 						if response.ok:
+							logging.info("Refreshing peers.")
 							active.peers = response.peers
 							networking.refresh_group(active)
 						else:
@@ -552,7 +551,6 @@ last_node_response: dict[
 
 
 def start_overseer():
-	logging.info("start_overseer called")
 	"""Starts overseeing thread, used by leader to monitor heartbeats from followers, and deletes those who are not active"""
 	global overseer
 	global overseer_counter
@@ -560,7 +558,7 @@ def start_overseer():
 
 	if overseer:
 		# Kill existing heartbeat
-		logging.info(f"Killing overseer {overseer_counter}")
+		logging.info(f"Killing overseer {overseer_counter}.")
 		overseer_kill_flags.add(overseer_counter)
 
 	logging.info("Starting overseer.")
@@ -574,7 +572,6 @@ def start_overseer():
 def overseer_thread(ov_id: int):
 	try:
 		while True:
-			logging.info(f"OV with id {ov_id}")
 			if ov_id in overseer_kill_flags:
 				raise InterruptedError
 
@@ -587,17 +584,18 @@ def overseer_thread(ov_id: int):
 				else:
 					last_node_response[node_id] = new_val
 
+			active = get_active_group()
 			for node_id in nodes_to_delete:
 				del last_node_response[node_id]
-				active = get_active_group()
 				del active.peers[node_id]
-				logging.info(f"Node {node_id} deleted -- no heartbeat from node")
+				logging.info(f"Node {node_id} deleted -- no heartbeat from node.")
 
 			networking.refresh_group(active)
 			time.sleep(overseer_interval)
-
+	except Exception as e:
+		logging.error(f"EXC: Overseer failed {e}")
 	finally:
-		logging.info("Killing overseer.")
+		logging.info("Overseer killed.")
 
 
 ### THINGS BELOW ARE NOT INTEGRATED YET

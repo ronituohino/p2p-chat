@@ -62,7 +62,6 @@ class Networks(Static):
 		group_node.remove_children()
 		if group:
 			self.add_peers(group_node, group)
-			logging.info(f"Cur: {self.active_group_data}")
 		else:
 			logging.info("Kicked.")
 
