@@ -21,7 +21,8 @@ class Networks(Static):
 	def __init__(self):
 		super().__init__()
 		self.network_labels = []
-		self.active_group: tuple[TreeNode, Group] = (None, None)
+		self.active_group_node: TreeNode | None = None
+		self.active_group_data: Group | None = None
 
 	def add_nds(self, nds_ip, groups):
 		tree = self.query_one("Tree")
@@ -39,7 +40,10 @@ class Networks(Static):
 		try:
 			nds = next(nds for nds in tree.root.children if nds.label.plain == nds_ip)
 			group_node = nds.add(label=group.name, data=group, expand=True)
-			self.active_group = (group_node, group)
+
+			self.active_group_node = group_node
+			self.active_group_data = group
+
 			self.close_other_groups(group_node)
 			self.add_peers(group_node, group)
 			self.app.chat.chat_log.clear()
@@ -53,19 +57,20 @@ class Networks(Static):
 
 	def refresh_group(self, group: Group | None):
 		logging.info("Refreshing group")
-		self.active_group[1] = group
-		group_node = self.active_group[0]
+		self.active_group_data = group = group
+		group_node = self.active_group_node
 		group_node.remove_children()
 		if group:
 			self.add_peers(group_node, group)
-			logging.info(f"Cur: {self.active_group}")
+			logging.info(f"Cur: {self.active_group_data}")
 		else:
 			logging.info("Kicked.")
 
 	async def join_group(self, group_node, group: NDS_Group):
 		"""Join a group by contacting the leader, then add peers to the tree"""
 		full_group: Group = await self.app.net.join_group(group.leader_ip)
-		self.active_group = (group_node, full_group)
+		self.active_group_node = group_node
+		self.active_group_data = full_group
 		if full_group:
 			self.add_peers(group_node, full_group)
 			self.app.chat.chat_log.clear()
