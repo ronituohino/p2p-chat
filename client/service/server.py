@@ -478,14 +478,19 @@ def heartbeat_thread(hb_id: int):
 					try:
 						rpc_client = create_rpc_client(leader_ip, node_port)
 						leader = rpc_client.get_proxy()
-						logging.info("Sengin heartbeat to leader.")
+						logging.info(
+							f"Sending heartbeat to leader from {active.self_id}."
+						)
 						response: HeartbeatResponse = HeartbeatResponse.from_json(
 							leader.receive_heartbeat(active.self_id)
 						)
+						logging.info(f"Got response: {response}")
 						if response.ok:
 							active.peers = response.peers
 						else:
-							logging.warning("Leader did not acknowledge heartbeat.")
+							logging.warning(
+								"Leader did not acknowledge heartbeat, we got kicked?"
+							)
 							# leader_election(group_id=group_id)
 					except Exception as e:
 						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
@@ -522,8 +527,13 @@ def heartbeat_thread(hb_id: int):
 def receive_heartbeat(peer_id):
 	active = get_active_group()
 	if peer_id in active.peers:
+		last_node_response[peer_id] = 0
 		return HeartbeatResponse(
 			ok=True, message="ok", peers=active.peers, vector_clock=active.vector_clock
+		).to_json()
+	else:
+		return HeartbeatResponse(
+			ok=False, message="you-got-kicked-lol", peers=None, vector_clock=0
 		).to_json()
 
 

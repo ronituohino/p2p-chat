@@ -118,6 +118,10 @@ class HeartbeatResponse(Response):
 	----------
 	message : str
 		The response to the heartbeat to indicate different statuses.
+	peers : dict[int, Node]
+		The peers that are in the group still.
+	vector_clock : int
+		The current vector_clock value.
 	"""
 
 	message: str  # a status message
