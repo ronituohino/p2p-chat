@@ -472,11 +472,6 @@ def heartbeat_thread():
 				else:
 					logging.error("Leader IP not found, initiating election...")
 					# leader_election(group_id=group_id)
-
-				interval = random.uniform(
-					heartbeat_min_interval, heartbeat_max_interval
-				)
-				time.sleep(interval)
 			else:
 				# This node is leader, send heartbeat to NDS
 				rpc_client = nds_servers[active.nds_ip]
@@ -494,6 +489,10 @@ def heartbeat_thread():
 							logging.error("NDS rejected heartbeat?")
 				except BaseException as e:
 					logging.error(f"EXC: Failed to send heartbeat to NDS: {e}")
+
+			# Sleep for a random interval, balances out leader election more
+			interval = random.uniform(heartbeat_min_interval, heartbeat_max_interval)
+			time.sleep(interval)
 	finally:
 		logging.info("Killing heartbeat.")
 
