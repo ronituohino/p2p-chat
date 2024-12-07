@@ -592,6 +592,7 @@ def overseer_thread(ov_id: int):
 				del active.peers[node_id]
 				logging.info(f"Node {node_id} deleted -- no heartbeat from node")
 
+			networking.refresh_group(active)
 			time.sleep(overseer_interval)
 
 	finally:
