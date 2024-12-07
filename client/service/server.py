@@ -436,9 +436,8 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 
 ### HEARTBEAT
 
-heartbeat: threading.Thread = (
-	None  # thread that sends rpc to leader or NDS every now and then
-)
+# thread that sends rpc to leader or NDS every now and then
+heartbeat: threading.Thread = None
 heartbeat_counter = 0  # set to the id of the heartbeat
 heartbeat_kill_flags = set()
 
@@ -542,7 +541,8 @@ def receive_heartbeat(peer_id):
 
 ### OVERSEEING
 
-overseer: threading.Thread = None  # thread that sends rpc to leader every now and then
+# thread that checks which nodes have sent heartbeat to me (leader) every now and then
+overseer: threading.Thread = None
 overseer_counter = 0  # set to the id of the heartbeat
 overseer_kill_flags = set()
 
@@ -560,7 +560,7 @@ def start_overseer():
 	if overseer:
 		# Kill existing heartbeat
 		logging.info(f"Killing overseer {overseer_counter}")
-		heartbeat_kill_flags.add(overseer_counter)
+		overseer_kill_flags.add(overseer_counter)
 
 	logging.info("Starting overseer.")
 	overseer_counter += 1
