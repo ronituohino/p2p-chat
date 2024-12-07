@@ -2,9 +2,9 @@
 
 Group project for Distributed Systems course.
 
-Kozheen Taher Esa  
-Joonas Ahovalli  
-Roni Tuohino
+[Kozheen Taher Esa](https://github.com/astranero)  
+[Joonas Ahovalli](https://github.com/joonas-a) 
+[Roni Tuohino](https://github.com/ronituohino)
 
 A peer-to-peer (P2P) chat application. The main functionality is creating
 networks (Networks / Groups / Chats), which can be thought of as group chats. A
@@ -18,6 +18,7 @@ addresses of the leaders.
 
 - Leader election system refactor and integration
 - Message reordering with vector clocks, heartbeat system carries this info
+- Ping NDS function (refresh button / thread with timer) so that new group info is fetched 
 
 Optional:
 

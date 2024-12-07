@@ -22,7 +22,9 @@ class Networking:
 	def register_ui(self, ui):
 		self.ui = ui
 
-	## API
+	### API
+
+	## OUTBOUND
 
 	# Called when contacting nds to get the groups of that network
 	async def add_discovery_source(self, nds_ip):
@@ -48,10 +50,15 @@ class Networking:
 	async def send_message(self, msg) -> bool:
 		return send_message(msg)
 
+	## INBOUND
+
 	# Called when a message arrived to the active group
 	def receive_message(self, source_name, msg) -> None:
 		msg = f"{source_name}: {msg}"
 		self.ui.chat.write(msg)
+
+	def refresh_group(self, group: Group) -> None:
+		self.ui.networks.refresh_group(group)
 
 
 def main():

@@ -1,6 +1,6 @@
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.widgets import Static, Tree
+from textual.widgets import Static, Tree, TreeNode
 from structs.client import Group
 from structs.nds import NDS_Group
 
@@ -20,6 +20,7 @@ class Networks(Static):
 	def __init__(self):
 		super().__init__()
 		self.network_labels = []
+		self.active_group: tuple[TreeNode, Group] = (None, None)
 
 	def add_nds(self, nds_ip, groups):
 		tree = self.query_one("Tree")
@@ -37,6 +38,7 @@ class Networks(Static):
 		try:
 			nds = next(nds for nds in tree.root.children if nds.label.plain == nds_ip)
 			group_node = nds.add(label=group.name, data=group, expand=True)
+			self.active_group = (group_node, group)
 			self.close_other_groups(group_node)
 			self.add_peers(group_node, group)
 			self.app.chat.chat_log.clear()
@@ -48,16 +50,31 @@ class Networks(Static):
 		tree = self.query_one("Tree")
 		self.network_labels = [nds.label.plain for nds in tree.root.children]
 
-	async def join_group(self, group_node, group: Group):
-		"""Join a group by contacting the leader, then add peers to the tree"""
-		group = await self.app.net.join_group(group.leader_ip)
+	def refresh_group(self, group: Group | None):
+		logging.info("Refreshing group")
+		self.active_group[1] = group
+		group_node = self.active_group[0]
+		group_node.remove_children()
 		if group:
 			self.add_peers(group_node, group)
+			logging.info(f"Cur: {self.active_group}")
+		else:
+			logging.info("Kicked.")
+
+	async def join_group(self, group_node, group: NDS_Group):
+		"""Join a group by contacting the leader, then add peers to the tree"""
+		full_group: Group = await self.app.net.join_group(group.leader_ip)
+		self.active_group = (group_node, full_group)
+		if full_group:
+			self.add_peers(group_node, full_group)
 			self.app.chat.chat_log.clear()
 
 	def add_peers(self, group_node, group: Group):
 		for peer_node in list(group.peers.values()):
-			group_node.add_leaf(peer_node.name)
+			if group.leader_id == peer_node.node_id:
+				group_node.add_leaf(f"{peer_node.name} (★)")
+			else:
+				group_node.add_leaf(peer_node.name)
 
 	async def leave_group(self, group_node, group: NDS_Group):
 		"""Leave a group by contacting the leader, then remove peers from the tree"""

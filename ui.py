@@ -78,6 +78,9 @@ class StubNetworking:
 	def receive_message(self, source_name, msg) -> None:
 		self.ui.chat.write(msg)
 
+	def refresh_group(self, group: Group | None) -> None:
+		self.ui.networks.refresh_group(group)
+
 
 # Stub Networking 'serve' command
 async def repeater(net: StubNetworking):

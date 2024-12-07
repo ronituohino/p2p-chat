@@ -267,8 +267,7 @@ def join_group(peer_name):
 		# Overseeing
 		last_node_response[assigned_peer_id] = 0
 
-		# TODO: UI should reflect this
-
+		networking.refresh_group(group)
 		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 
 		return JoinGroupResponse(
@@ -489,10 +488,11 @@ def heartbeat_thread(hb_id: int):
 						logging.info(f"Got response: {response}")
 						if response.ok:
 							active.peers = response.peers
+							networking.refresh_group(active)
 						else:
-							logging.warning(
-								"Leader did not acknowledge heartbeat, we got kicked?"
-							)
+							logging.warning("Leader said not ok, we got kicked!")
+							set_active_group(None)
+							networking.refresh_group(None)
 							# leader_election(group_id=group_id)
 					except Exception as e:
 						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
@@ -512,6 +512,7 @@ def heartbeat_thread(hb_id: int):
 					if not response.ok:
 						if response.message == "group-deleted-womp-womp":
 							logging.error("NDS deleted the group :(")
+							set_active_group(None)
 							# TODO: UI should reflect this
 						else:
 							logging.error("NDS rejected heartbeat?")
