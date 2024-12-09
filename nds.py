@@ -90,9 +90,7 @@ def create_group(group_name):
 	logging.info(f"Group creation successful for {group_name}")
 	return CreateGroupResponse(ok=True, group=new_group).to_json()
 
-
 ### HEARTBEAT
-
 
 @dispatcher.public
 def receive_heartbeat(group_id):
@@ -146,7 +144,7 @@ def update_group_leader(group_id):
 	global leader_port
 	new_leader_ip = get_ip()
 	if group_id not in groups:
-		return UpdateGroupResponse(ok=False, message=f"Group {group_id} not found.").to_json()
+		return UpdateGroupResponse(ok=False, message=f"Group {group_id} not found.", group={}).to_json()
 
 	group = groups[group_id]
 	current_leader = group["leader_ip"]

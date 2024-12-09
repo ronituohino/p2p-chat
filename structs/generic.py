@@ -17,6 +17,12 @@ class Response:
 	----------
 	ok : bool
 		Indicates whether the response was successful or not.
+	message: str
+		A response message
+	data: dict
+		dictionary containing required data.
 	"""
 
 	ok: bool
+	message: str
+	data: dict

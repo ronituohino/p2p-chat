@@ -127,3 +127,10 @@ class HeartbeatResponse(Response):
 	message: str  # a status message
 	peers: dict[int, Node]  # in case new people joined the group, inform others
 	vector_clock: int
+
+
+@dataclass_json
+@dataclass
+class UpdateGroupResponse(Response):
+	group: NDS_Group
+	message: str
