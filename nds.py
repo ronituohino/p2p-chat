@@ -16,8 +16,10 @@ from structs.nds import (
 	FetchGroupResponse,
 	CreateGroupResponse,
 	NDS_HeartbeatResponse,
+	UpdateGroupResponse,
+	RemoveGroupResponse,
+	GetGroupLeaderResponse
 )
-from structs.generic import Response
 
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
@@ -138,40 +140,22 @@ def overseer_thread():
 	finally:
 		logging.info("Killing overseer.")
 
-
-### THINGS BELOW ARE NOT INTEGRATED YET
-
-
-@dispatcher.public
-def reset_database():
-	"""Reset the groups database."""
-	global groups
-	groups = {}
-	return {"success": True, "message": "Database reset successfully"}
-
-
 @dispatcher.public
 def update_group_leader(group_id):
 	"""Updates a leader of a network after leader election."""
 	global leader_port
 	new_leader_ip = get_ip()
 	if group_id not in groups:
-		return Response(success=False, message=f"Group {group_id} not found.")
+		return UpdateGroupResponse(ok=False, message=f"Group {group_id} not found.").to_json()
 
 	group = groups[group_id]
 	current_leader = group["leader_ip"]
 	if current_leader and liveness(current_leader, leader_port):
-		return Response(
-			success=False,
-			message="Leader is still alive, cannot update.",
-			data={"leader_ip": current_leader},
-		)
+		return UpdateGroupResponse(ok=False, message="Leader is still alive, cannot update.", group=group).to_json()
 
 	group["leader_ip"] = new_leader_ip
 	groups[group_id] = group
-
-	logging.info("Leader update successful.")
-	return Response(success=True, message="Leader update successful")
+	return UpdateGroupResponse(ok=True, group=group).to_json()
 
 
 @dispatcher.public
@@ -180,25 +164,24 @@ def remove_group(group_id):
 	if group_id in groups:
 		groups.pop(group_id)
 		logging.info(f"Group {group_id} has been removed.")
-		return Response(success=True, message=f"Group {group_id} has been removed.")
+		groups_list = list(groups.values())
+		return RemoveGroupResponse(ok=True, groups=groups_list).to_json()
 	else:
+		groups_list = list(groups.values())
 		logging.info(f"Group {group_id} was not found.")
-		return Response(success=True, message=f"Group {group_id} was not found.")
+		return RemoveGroupResponse(ok=True, groups=groups_list).to_json()
 
 
 @dispatcher.public
 def get_group_leader(group_id):
 	"""Gets the current leader of a group."""
 	if group_id not in groups:
-		return Response(success=False, message=f"Group {group_id} not found.")
+		return GetGroupLeaderResponse(ok=False, message=f"Group {group_id} not found.").to_json()
+
 	group = groups[group_id]
 	current_leader = group["leader_ip"]
 	logging.info("Group leader sent successfully.")
-	return Response(
-		success=True,
-		message="Group leader fetched successfully",
-		data={"leader_ip": current_leader},
-	)
+	return GetGroupLeaderResponse(ok=True, leader_ip=current_leader).to_json()
 
 
 @dispatcher.public
