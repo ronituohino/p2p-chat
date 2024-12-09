@@ -651,9 +651,9 @@ def update_nds_server():
 	server = nds_servers.get(nds_ip, None)
 	if server:
 		remote_server = server.get_proxy()
-		response: UpdateGroupResponse = UpdateGroupResponse(
+		response: UpdateGroupResponse = UpdateGroupResponse.from_json(
 			remote_server.update_group_leader(group_id)
-		).from_json()
+		)
 		if response.ok:
 			return (True, response.group)
 		elif not response.group:
@@ -722,9 +722,9 @@ def synchronize_with_leader():
 	if leader_ip:
 		rpc_client = create_rpc_client(leader_ip, node_port)
 		remote_server = rpc_client.get_proxy()
-		response: Response = Response(
+		response: Response = Response.from_json(
 			remote_server.call_for_synchronization(group.group_id, group.vector_clock)
-		).from_json()
+		)
 		if response.ok:
 			missing_messages = response.data.get("missing_messages", [])
 			if missing_messages:
@@ -742,9 +742,9 @@ def push_messages_to_peer(all_messages, peer_id):
 	rpc_client = create_rpc_client(peer_ip, node_port)
 
 	remote_server = rpc_client.get_proxy()
-	response: Response = Response(
+	response: Response = Response.from_json(
 		remote_server.report_vector_clock(group.group_id)
-	).from_json()
+	)
 
 	if response.ok:
 		peer_vector_clock = response.data["vector_clock"]
