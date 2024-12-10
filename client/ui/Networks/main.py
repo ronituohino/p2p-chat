@@ -66,11 +66,14 @@ class Networks(Static):
 				nds.add(label=group.name, data=group)
 
 	def find_group_node(self, grp: None | Group | NDS_Group) -> TreeNode | None:
+		if not grp:
+			return None
+
 		tree = self.query_one("Tree")
 		active_node = None
 		for nds in tree.root.children:
 			for node in nds.children:
-				if not grp or node.data.group_id != grp.group_id:
+				if node.data.group_id == grp.group_id:
 					active_node = node
 					break
 		return active_node
