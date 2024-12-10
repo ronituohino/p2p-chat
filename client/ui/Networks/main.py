@@ -34,9 +34,6 @@ class Networks(Static):
 		"""Takes a new group and adds it under the given NDS, only if the NDS exists"""
 		tree = self.query_one("Tree")
 
-		# Currently assumes that NDS label is it's IP address
-		# This could be changed so that label is any string, and the ip
-		# is passed as TreeNode datatype, see: https://textual.textualize.io/widgets/tree/#textual.widgets.tree.TreeNode(data)
 		try:
 			nds = next(nds for nds in tree.root.children if nds.label.plain == nds_ip)
 			group_node = nds.add(label=group.name, data=group, expand=True)
@@ -57,7 +54,7 @@ class Networks(Static):
 
 	def refresh_group(self, group: Group | None):
 		logging.info("Refreshing group")
-		self.active_group_data = group = group
+		self.active_group_data = group
 		group_node = self.active_group_node
 		group_node.remove_children()
 		if group:

@@ -142,6 +142,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 	if not group_name:
 		raise ValueError("Group name cannot be empty.")
 
+	has_gone_wrong = False
 	try:
 		nds = rpc_client.get_proxy()
 		response: CreateGroupResponse = CreateGroupResponse.from_json(
@@ -162,17 +163,21 @@ def create_group(group_name, nds_ip) -> Group | None:
 			)
 			set_active_group(this_group)
 
-			start_heartbeat()
-			start_overseer()
-
 			logging.info(f"Created group, {group_name}, with ID: {group_id}")
 			return this_group
 		else:
 			logging.error("Failed to create group")
 			return None
 	except BaseException as e:
+		has_gone_wrong = True
 		logging.error(f"EXC: Failed to create group: {e}")
 		return None
+
+	finally:
+		if not has_gone_wrong:
+			logging.info("Starting heartbeat+overseer 🤪.")
+			start_heartbeat()
+			start_overseer()
 
 
 def leave_group(group_id: str):
