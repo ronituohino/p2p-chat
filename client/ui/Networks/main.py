@@ -87,7 +87,9 @@ class Networks(Static):
 
 	async def join_group(self, group_node, group: NDS_Group):
 		"""Join a group by contacting the leader, then add peers to the tree"""
-		full_group: Group = await self.app.net.join_group(group.leader_ip)
+		full_group: Group = await self.app.net.join_group(
+			group.leader_ip, group.group_id
+		)
 		self.active_group_node = group_node
 		self.active_group_data = full_group
 		if full_group:

@@ -38,8 +38,8 @@ class Networking:
 		return new_group
 
 	# Called when contacting leader of group to join
-	async def join_group(self, leader_ip) -> Group | None:
-		group = request_to_join_group(leader_ip)
+	async def join_group(self, leader_ip, group_id) -> Group | None:
+		group = request_to_join_group(leader_ip, group_id)
 		return group
 
 	# Simply sets the active group to None, other systems should react accordingly

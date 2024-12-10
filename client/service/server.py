@@ -198,7 +198,7 @@ def request_to_leave_group():
 	set_active_group(None)
 
 
-def request_to_join_group(leader_ip) -> Group | None:
+def request_to_join_group(leader_ip, group_id) -> Group | None:
 	"""
 	Args:
 		leader_ip (str): An IP addr. of the leader ip
@@ -212,7 +212,7 @@ def request_to_join_group(leader_ip) -> Group | None:
 	try:
 		leader = rpc_client.get_proxy()
 		response: JoinGroupResponse = JoinGroupResponse.from_json(
-			leader.join_group(self_name)
+			leader.join_group(self_name, group_id)
 		)
 		if response.ok:
 			response.group.self_id = response.assigned_peer_id
@@ -232,7 +232,7 @@ def request_to_join_group(leader_ip) -> Group | None:
 
 
 @dispatcher.public
-def join_group(peer_name):
+def join_group(peer_name, group_id):
 	"""
 	This is called when a client asks the group leader if they could join.
 
@@ -251,7 +251,12 @@ def join_group(peer_name):
 
 		if group.leader_id != group.self_id:
 			return JoinGroupResponse(
-				ok=False, message="not-leader", assigned_peer_id=0, group=None
+				ok=False, message="not-leader", assigned_peer_id=-1, group=None
+			).to_json()
+
+		if group.group_id != group_id:
+			return JoinGroupResponse(
+				ok=False, message="not-in-that-group", assigned_peer_id=-1, group=None
 			).to_json()
 
 		for peer in group.peers.values():
@@ -734,7 +739,7 @@ def become_leader():
 			f"Some leader already exists, with ip {current_leader_ip}, requesting to join group."
 		)
 
-		new_group = request_to_join_group(current_leader_ip)
+		new_group = request_to_join_group(current_leader_ip, new_nds_group.group_id)
 
 		logging.info(f"Gropu joined {new_group}")
 
