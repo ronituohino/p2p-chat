@@ -26,7 +26,7 @@ class Networks(Static):
 
 	def add_nds(self, nds_ip, groups):
 		tree = self.query_one("Tree")
-		nds = tree.root.add(label=nds_ip, data="NDS (temp)", expand=True)
+		nds = tree.root.add(label=nds_ip, expand=True)
 		for group in groups:
 			nds.add(label=group.name, data=group)
 
@@ -52,12 +52,24 @@ class Networks(Static):
 		tree = self.query_one("Tree")
 		self.network_labels = [nds.label.plain for nds in tree.root.children]
 
-	def reload_groups(self, new_groups: NDS_Group):
+	def reload_groups(self, nds_ip: str, new_groups: NDS_Group):
 		"""Reloads every group to self"""
-		logging.info("Refreshing every group")
 		tree = self.query_one("Tree")
-		for g in new_groups:
-			logging.info("g", g)
+		nds = next(nds for nds in tree.root.children if nds.label.plain == nds_ip)
+
+		closed_groups = [
+			node
+			for nds in tree.root.children
+			for node in nds.children
+			if node.is_collapsed
+		]
+
+		for node in closed_groups:
+			node.remove()
+
+		for group in new_groups:
+			if group.group_id != self.active_group_data.group_id:
+				nds.add(label=group.name, data=group)
 
 	def refresh_group(self, group: Group | None):
 		logging.info("Refreshing group")

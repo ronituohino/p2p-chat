@@ -10,7 +10,7 @@ from client.service import (
 import sys
 import logging
 
-from structs.client import Node, Group
+from structs.client import Group
 ### CLIENT ENTRYPOINT
 
 
@@ -60,8 +60,8 @@ class Networking:
 	def refresh_group(self, group: Group) -> None:
 		self.ui.networks.refresh_group(group)
 
-	def reload_all_groups(self, groups: list[Group]) -> None:
-		self.ui.networks.reload_groups(groups)
+	def reload_all_groups(self, nds_ip: str, groups: list[Group]) -> None:
+		self.ui.networks.reload_groups(nds_ip, groups)
 
 
 def main():

@@ -462,14 +462,13 @@ def start_crawler():
 def crawler_thread():
 	try:
 		while True:
-			for nds_client in nds_servers.values():
+			for nds_ip, nds_client in nds_servers.items():
 				nds = nds_client.get_proxy()
 				response: FetchGroupResponse = FetchGroupResponse.from_json(
 					nds.get_groups()
 				)
 				if response.ok:
-					# groups will be in response.groups in a list
-					pass
+					networking.reload_all_groups(nds_ip, response.groups)
 
 			# Wait for a bit before fetching again
 			time.sleep(crawler_refresh_rate)
