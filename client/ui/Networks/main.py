@@ -78,11 +78,6 @@ class Networks(Static):
 			else:
 				group_node.add_leaf(peer_node.name)
 
-	async def leave_group(self, group_node, group: NDS_Group):
-		"""Leave a group by contacting the leader, then remove peers from the tree"""
-		await self.app.net.leave_group(group.group_id)
-		group_node.remove_children()
-
 	async def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
 		"""Called when any node is expanded in the tree"""
 		if isinstance(event.node.data, NDS_Group):
@@ -108,7 +103,8 @@ class Networks(Static):
 	async def on_tree_node_collapsed(self, event: Tree.NodeCollapsed) -> None:
 		"""Called when any node is collapsed in the tree"""
 		if isinstance(event.node.data, NDS_Group):
-			await self.leave_group(event.node, event.node.data)
+			await self.app.net.leave_group()
+			event.node.remove_children()
 
 	def compose(self) -> ComposeResult:
 		with VerticalScroll():

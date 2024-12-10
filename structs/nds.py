@@ -47,6 +47,13 @@ class CreateGroupResponse(Response):
 
 @dataclass_json
 @dataclass
+class UpdateGroupResponse(Response):
+	group: None | NDS_Group
+	message: str
+
+
+@dataclass_json
+@dataclass
 class NDS_HeartbeatResponse(Response):
 	"""Represents a heartbeat message sent back to a leader of a Group from NDS.
 

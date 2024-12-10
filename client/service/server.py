@@ -20,6 +20,7 @@ from structs.client import (
 	JoinGroupResponse,
 	ReceiveMessageResponse,
 	HeartbeatResponse,
+	UpdateGroupResponse,
 )
 from structs.generic import Response
 from structs.nds import FetchGroupResponse, CreateGroupResponse, NDS_HeartbeatResponse
@@ -181,13 +182,8 @@ def create_group(group_name, nds_ip) -> Group | None:
 			start_overseer()
 
 
-def leave_group(group_id: str):
+def leave_group():
 	"""A way for client to leave a group."""
-
-	active = get_active_group()
-	if not active or active.group_id != group_id:
-		logging.error(f"Cannot leave group {group_id} because it's not active")
-		return
 
 	# If we are the leader of the group
 	# we can just dip, and stop responding to messages
@@ -196,6 +192,7 @@ def leave_group(group_id: str):
 	# we can just stop sending liveness pings to leader
 	# who then notices that we are gone
 
+	logging.info("Leaving group.")
 	set_active_group(None)
 
 
@@ -476,6 +473,10 @@ def heartbeat_thread(hb_id: int):
 				raise InterruptedError
 
 			active = get_active_group()
+
+			if not active:
+				raise InterruptedError
+
 			# If this node not leader, send heartbeat to leader
 			if active.self_id != active.leader_id:
 				leader_ip = active.peers[active.leader_id].ip
@@ -497,13 +498,16 @@ def heartbeat_thread(hb_id: int):
 							logging.warning("Leader said not ok, we got kicked!")
 							set_active_group(None)
 							networking.refresh_group(None)
-							# leader_election(group_id=group_id)
 					except Exception as e:
+						logging.info(f"Exception caught: {e}")
+						try:
+							leader_election(active.group_id)
+						except Exception as ea:
+							logging.info(f"what {ea}")
 						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
-						# leader_election(group_id=group_id)
 				else:
+					leader_election(active.group_id)
 					logging.error("Leader IP not found, initiating election...")
-					# leader_election(group_id=group_id)
 			else:
 				# This node is leader, send heartbeat to NDS
 				rpc_client = nds_servers[active.nds_ip]
@@ -517,7 +521,7 @@ def heartbeat_thread(hb_id: int):
 						if response.message == "group-deleted-womp-womp":
 							logging.error("NDS deleted the group :(")
 							set_active_group(None)
-							# TODO: UI should reflect this
+							networking.refresh_group(None)
 						else:
 							logging.error("NDS rejected heartbeat?")
 				except BaseException as e:
@@ -581,6 +585,10 @@ def overseer_thread(ov_id: int):
 			if ov_id in overseer_kill_flags:
 				raise InterruptedError
 
+			active = get_active_group()
+			if not active:
+				raise InterruptedError
+
 			nodes_to_delete = []
 			for node_id in last_node_response.keys():
 				new_val = last_node_response[node_id] + 1
@@ -590,7 +598,6 @@ def overseer_thread(ov_id: int):
 				else:
 					last_node_response[node_id] = new_val
 
-			active = get_active_group()
 			for node_id in nodes_to_delete:
 				del last_node_response[node_id]
 				del active.peers[node_id]
@@ -604,7 +611,167 @@ def overseer_thread(ov_id: int):
 		logging.info("Overseer killed.")
 
 
-### THINGS BELOW ARE NOT INTEGRATED YET
+### LEADER ELECTION
+
+
+def leader_election(group_id):
+	logging.info("Starting leader election.")
+	active_group = get_active_group()
+	peers = active_group.peers
+	self_id = active_group.self_id
+	vector_clock = active_group.vector_clock
+
+	low_id_nodes = [peer_id for peer_id in peers if peer_id < self_id]
+	got_answer = None
+	if not low_id_nodes:
+		logging.info("No other nodes found, making self leader.")
+		become_leader()
+	else:
+		for peer_id in low_id_nodes:
+			peer = peers[peer_id]
+			peer_ip = peer.ip
+
+			logging.info(f"Pinging {peer_id} if they want to be leader...")
+			try:
+				rpc_client = create_rpc_client(peer_ip, node_port)
+				remote_server = rpc_client.get_proxy()
+				response: Response = Response(
+					remote_server.election_message(group_id, self_id, vector_clock)
+				).to_json()
+
+				if response.ok:
+					logging.info(
+						f"{peer_id} responded that they can be leader. Stopping election."
+					)
+					got_answer = True
+			except Exception:
+				logging.info(f"No response from {peer_id}.")
+				continue
+		if not got_answer:
+			logging.info("No response from other nodes, making self leader.")
+			become_leader()
+
+
+@dispatcher.public
+def election_message(group_id, candidate_id, candidate_vc):
+	group = get_active_group()
+	if group_id == group.group_id:
+		self_id = group.self_id
+		vector_clock = group.vector_clock
+		if self_id < candidate_id and vector_clock >= candidate_vc:
+			leader_election(group_id)
+			return Response(ok=True).to_json()
+	else:
+		return Response(ok=False).to_json()
+
+
+def become_leader():
+	group = get_active_group()
+	self_id = group.self_id
+
+	logging.info("Pinging NDS that we want to be leader.")
+	did_update, new_nds_group = update_nds_server()
+
+	if did_update and new_nds_group:
+		logging.info("NDS made us leader.")
+		group.leader_id = self_id
+
+		start_heartbeat()
+		start_overseer()
+
+		broadcast_new_leader()
+		# push_messages_to_peers()
+	elif not new_nds_group:
+		logging.info("NDS has deleted the group already.")
+		# Group does not exist
+		set_active_group(None)
+		networking.refresh_group(None)
+	else:
+		# Old leader still exists
+		current_leader_ip = new_nds_group.leader_ip
+		logging.info(
+			f"Some leader already exists, with ip {current_leader_ip}, requesting to join group."
+		)
+
+		new_group = request_to_join_group(current_leader_ip)
+
+		logging.info(f"Gropu joined {new_group}")
+
+		set_active_group(new_group)
+		networking.refresh_group(new_group)
+
+		# after joining new group
+		# synchronize_with_leader()
+
+	# If NDS does not exist, we should remove the entire block...
+
+
+def update_nds_server():
+	group = get_active_group()
+	group_id = group.group_id
+	nds_ip = group.nds_ip
+	server = nds_servers[nds_ip]
+	if server:
+		remote_server = server.get_proxy()
+		response: UpdateGroupResponse = UpdateGroupResponse.from_json(
+			remote_server.update_group_leader(group_id)
+		)
+		return (response.ok, response.group)
+	else:
+		logging.error("NDS server not found.")
+		return (False, None)
+
+
+@dispatcher.public
+def still_leader_of_group(group_id):
+	group = get_active_group()
+	if group and group.group_id == group_id and group.leader_id == group.self_id:
+		return Response(ok=True).to_json()
+	else:
+		return Response(ok=False).to_json()
+
+
+def broadcast_new_leader():
+	group = get_active_group()
+	peers = group.peers
+	self_id = group.self_id
+
+	peers_to_remove = []
+	for peer_id, peer_info in peers.items():
+		if peer_id == self_id:
+			continue
+		peer_ip = peer_info.ip
+		try:
+			rpc_client = create_rpc_client(peer_ip, node_port)
+			remote_server = rpc_client.get_proxy()
+			response: Response = Response.from_json(
+				remote_server.update_leader(group.group_id, self_id)
+			)
+			if not response.ok:
+				peers_to_remove.append(peer_id)
+				logging.info(
+					f"Peer {peer_id} no longer in group, removing them from group."
+				)
+		except Exception:
+			peers_to_remove.append(peer_id)
+			logging.info(f"Peer {peer_id} not reached, removing them from group.")
+			continue
+
+	for peer_id in peers_to_remove:
+		group.peers.pop(peer_id)
+
+
+@dispatcher.public
+def update_leader(group_id, new_leader_id):
+	group = get_active_group()
+	if group and group.group_id == group_id:
+		group.leader_id = new_leader_id
+		return Response(ok=True).to_json()
+	else:
+		return Response(ok=False).to_json()
+
+
+### INTEGRATE BELOW
 
 
 def store_message(msg, msg_id, group_id, source_id, vector_clock):
@@ -623,124 +790,71 @@ def store_message(msg, msg_id, group_id, source_id, vector_clock):
 	message_store[group_id] = messages
 
 
-def leader_election(group_id):
-	_, self_id, _, vector_clock, peers = get_group_info(group_id=group_id)
-	low_id_nodes = [peer_id for peer_id in peers if peer_id < self_id]
-	got_answer = None
-	if not low_id_nodes:
-		become_leader(group_id)
-	else:
-		for peer_id in low_id_nodes:
-			if peer_id == self_id:
-				continue
-			peer_ip = peers[peer_id]["ip"]
-			rpc_client = create_rpc_client(peer_ip, node_port)
-			try:
-				remote_server = rpc_client.get_proxy()
-				response = remote_server.election_message(
-					group_id, self_id, vector_clock
-				)
-				response = Response(**response)
-				if response.success:
-					got_answer = True
-			except Exception:
-				continue
-		if not got_answer:
-			become_leader(group_id)
-
-
-def update_nds_server(group_id):
-	group = groups.get(group_id)
-	nds_ip = group.get("nds_ip")
-	server = nds_servers.get(nds_ip, None)
-	if server:
-		remote_server = server.get_proxy()
-		response_dict = remote_server.update_group_leader(group_id)
-		response = Response(**response_dict)
-		if response.success:
-			return (True, None)
-		elif not response.success:
-			return (False, response.data.get("leader_ip", None))
-	else:
-		logging.error("NDS server not found.")
-		return (False, None)
-
-
-def become_leader(group_id):
-	group_name, self_id, leader_id, vector_clock, peers = get_group_info(
-		group_id=group_id
-	)
-	leader_id = self_id
-	did_update, current_leader_ip = update_nds_server(group_id)
-	if not did_update:
-		if current_leader_ip:
-			logging.info(f"Current leader IP from NDS: {current_leader_ip}")
-			request_to_join_group(leader_ip=current_leader_ip, group_id=group_id)
-		return
-	else:
-		update_group_info(group_id, group_name, self_id, leader_id, vector_clock, peers)
-		broadcast_new_leader(group_id)
-		push_messages_to_peers(group_id)
-
-
-def push_messages_to_peers(group_id):
-	_, _, _, _, peers = get_group_info(group_id=group_id)
-	all_messages = message_store.get(group_id, [])
-	peers = get_group_peers(group_id=group_id)
-
+def push_messages_to_peers():
+	group = get_active_group()
+	peers = group.peers
+	all_messages = message_store.get(group.group_id, [])
 	for peer_id, _ in peers.items():
 		push_messages_to_peer(
-			group_id=group_id, all_messages=all_messages, peer_id=peer_id
+			group_id=group.group_id, all_messages=all_messages, peer_id=peer_id
 		)
 
 
 @dispatcher.public
-def call_for_synchronization(group_id, peer_id, peer_vector_clock):
-	all_messages = message_store.get(group_id, [])
-	missing_messages = [
-		msg for msg in all_messages if msg["vector_clock"] > peer_vector_clock
-	]
-	return Response(
-		success=True,
-		message="Missing messages provided.",
-		data={"missing_messages": missing_messages},
-	)
+def call_for_synchronization(group_id, peer_vector_clock):
+	group = get_active_group()
+	if group_id == group.group_id:
+		all_messages = message_store.get(group_id, [])
+		missing_messages = [
+			msg for msg in all_messages if msg["vector_clock"] > peer_vector_clock
+		]
+		return Response(
+			ok=True,
+			message="Missing messages provided.",
+			data={"missing_messages": missing_messages},
+		).to_json()
 
 
-def synchronize_with_leader(group_id):
-	_, self_id, leader_id, vector_clock, peers = get_group_info(group_id=group_id)
+# Used on startup, when node joins it can synchronize its messages with leader.
+def synchronize_with_leader():
+	group = get_active_group()
+	peers = group.peers
+	leader_id = group.leader_id
 	leader_ip = peers.get(leader_id, {}).get("ip")
 	if leader_ip:
 		rpc_client = create_rpc_client(leader_ip, node_port)
 		remote_server = rpc_client.get_proxy()
-		response_dict = remote_server.call_for_synchronization(
-			group_id, self_id, vector_clock
+		response: Response = Response.from_json(
+			remote_server.call_for_synchronization(group.group_id, group.vector_clock)
 		)
-		response = Response(**response_dict)
-		if response.success:
+		if response.ok:
 			missing_messages = response.data.get("missing_messages", [])
 			if missing_messages:
-				update_messages(group_id, missing_messages)
+				update_messages(group.group_id, missing_messages)
 
 
-def push_messages_to_peer(group_id, all_messages, peer_id):
-	_, self_id, _, _, _ = get_group_info(group_id=group_id)
+## If candidate becomes a leader, it will check all peer messages and updates them based on vector clock.
+def push_messages_to_peer(all_messages, peer_id):
+	group = get_active_group()
+	self_id = group.self_id
 	if peer_id == self_id:
 		return False
 
-	peer_ip = get_peer_ip(peer_id=peer_id, group_id=group_id)
+	peer_ip = group.peers.peer_id.ip
 	rpc_client = create_rpc_client(peer_ip, node_port)
 
 	remote_server = rpc_client.get_proxy()
-	response_dict = remote_server.report_vector_clock(group_id)
-	response = Response(**response_dict)
-	if response.success:
+	response: Response = Response.from_json(
+		remote_server.report_vector_clock(group.group_id)
+	)
+
+	if response.ok:
 		peer_vector_clock = response.data["vector_clock"]
 		missing_messages = [
 			msg for msg in all_messages if msg["vector_clock"] > peer_vector_clock
 		]
 		if missing_messages:
-			remote_server.update_messages(group_id, missing_messages)
+			remote_server.update_messages(group.group_id, missing_messages)
 			logging.info(f"Sent {len(missing_messages)} messages to peer {peer_id}")
 	else:
 		logging.warning(f"Could not fetch vector clock from peer {peer_id}")
@@ -748,66 +862,43 @@ def push_messages_to_peer(group_id, all_messages, peer_id):
 
 @dispatcher.public
 def report_vector_clock(group_id):
-	group = groups.get(group_id, {})
-	vector_clock = group.get("vector_clock", 0)
-	return Response(
-		success=True,
-		message="vector clock reported succesfully.",
-		data={"vector_clock": vector_clock},
-	)
+	group = get_active_group()
+	if group_id == group.group_id:
+		vector_clock = group.get("vector_clock", 0)
+		return Response(
+			ok=True,
+			message="vector clock reported succesfully.",
+			data={"vector_clock": vector_clock},
+		).to_json()
 
 
 @dispatcher.public
 def update_messages(group_id, messages):
-	for msg_data in messages:
-		msg_id = msg_data["msg_id"]
-		source_id = msg_data["source_id"]
-		msg = msg_data["msg"]
-		vector_clock = msg_data["vector_clock"]
-		if msg_id not in received_messages:
-			store_message(msg, msg_id, group_id, source_id, vector_clock)
-			received_messages.add(msg_id)
-			peers = get_group_peers(group_id)
-			peer_info = peers.get(source_id)
-			peer_name = peer_info.get("name", "Unknown")
-			networking.receive_messages(source_name=peer_name, msg=(vector_clock, msg))
-
-	if messages:
-		max_vector_clock = max(msg["vector_clock"] for msg in messages)
-		group = groups.get(group_id, {})
-		group["vector_clock"] = max(group.get("vector_clock", 0), max_vector_clock)
-		groups[group_id] = group
-	return Response(success=True, message="messages have been received successfully.")
-
-
-@dispatcher.public
-def election_message(group_id, candidate_id, candidate_vc):
-	_, self_id, _, vector_clock, _ = get_group_info(group_id=group_id)
-	if self_id < candidate_id and vector_clock >= candidate_vc:
-		return Response(success=True, message="ACK")
-
-
-def broadcast_new_leader(group_id):
-	_, self_id, _, _, peers = get_group_info(group_id)
-	for peer_id, peer_info in peers.items():
-		if peer_id == self_id:
-			continue
-		peer_ip = peer_info["ip"]
-		rpc_client = create_rpc_client(peer_ip, node_port)
-		remote_server = rpc_client.get_proxy()
-		remote_server.update_leader(group_id, self_id)
-
-
-@dispatcher.public
-def update_leader(group_id, self_id):
-	group = groups.get(group_id, {})
-	if group:
-		group["leader_id"] = self_id
-		groups[group_id] = group
-		logging.info("Peer list updated.")
-		return Response(success=True, message="Leader has been updated.")
-	else:
-		return Response(success=False, message="Leader was not updated.")
+	group = get_active_group()
+	if group_id == group.group_id:
+		for msg_data in messages:
+			msg_id = msg_data["msg_id"]
+			source_id = msg_data["source_id"]
+			msg = msg_data["msg"]
+			vector_clock = msg_data["vector_clock"]
+			if msg_id not in received_messages:
+				store_message(msg, msg_id, group_id, source_id, vector_clock)
+				received_messages.add(msg_id)
+				peers = group.peers
+				peer_info = peers.get(source_id)
+				peer_name = peer_info.get("name", "Unknown")
+				networking.receive_messages(
+					source_name=peer_name, msg=(vector_clock, msg)
+				)
+		if messages:
+			max_vector_clock = max(msg["vector_clock"] for msg in messages)
+			group.vector_clock = max(group.get("vector_clock", 0), max_vector_clock)
+		return Response(
+			ok=True, message="messages have been received successfully."
+		).to_json()
+	return Response(
+		ok=False, message="messages were not received successfully."
+	).to_json()
 
 
 if __name__ == "__main__":
