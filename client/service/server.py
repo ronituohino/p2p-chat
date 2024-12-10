@@ -194,8 +194,9 @@ def request_to_leave_group(group: Group):
 	# we can just stop sending liveness pings to leader
 	# who then notices that we are gone
 
-	if group.group_id == get_active_group().group_id:
-		logging.info("Leaving group.")
+	logging.info("Leaving group.")
+	active = get_active_group()
+	if active and group.group_id == get_active_group().group_id:
 		set_active_group(None)
 
 
