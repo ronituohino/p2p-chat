@@ -68,7 +68,10 @@ class Networks(Static):
 			node.remove()
 
 		for group in new_groups:
-			if group.group_id != self.active_group_data.group_id:
+			if (
+				not self.active_group_data
+				or group.group_id != self.active_group_data.group_id
+			):
 				nds.add(label=group.name, data=group)
 
 	def refresh_group(self, group: Group | None):

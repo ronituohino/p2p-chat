@@ -527,13 +527,17 @@ def heartbeat_thread(hb_id: int):
 							f"Sending heartbeat to leader from {active.self_id}."
 						)
 						response: HeartbeatResponse = HeartbeatResponse.from_json(
-							leader.receive_heartbeat(active.self_id)
+							leader.receive_heartbeat(active.self_id, active.group_id)
 						)
 						if response.ok:
 							logging.info("Refreshing peers.")
 							active.peers = response.peers
 							networking.refresh_group(active)
+						elif response.message == "changed-group":
+							logging.warning("Leader changed group.")
+							leader_election(active.group_id)
 						else:
+							# response.message == "you-got-kicked-lol"
 							logging.warning("Leader said not ok, we got kicked!")
 							set_active_group(None)
 							networking.refresh_group(None)
@@ -570,8 +574,12 @@ def heartbeat_thread(hb_id: int):
 
 
 @dispatcher.public
-def receive_heartbeat(peer_id):
+def receive_heartbeat(peer_id, group_id):
 	active = get_active_group()
+	if active.group_id != group_id:
+		return HeartbeatResponse(
+			ok=False, message="changed-group", peers=[], vector_clock=0
+		).to_json()
 	if peer_id in active.peers:
 		last_node_response[peer_id] = 0
 		return HeartbeatResponse(
