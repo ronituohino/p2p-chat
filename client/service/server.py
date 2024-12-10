@@ -651,7 +651,7 @@ def overseer_thread(ov_id: int):
 				raise InterruptedError
 
 			active = get_active_group()
-			if not active:
+			if not active or active.self_id != active.leader_id:
 				raise InterruptedError
 
 			nodes_to_delete = []
