@@ -624,7 +624,7 @@ def leader_election(group_id):
 	got_answer = None
 	if not low_id_nodes:
 		logging.info("No other nodes found, making self leader.")
-		become_leader(group_id)
+		become_leader()
 	else:
 		for peer_id in low_id_nodes:
 			peer = peers[peer_id]
@@ -648,7 +648,7 @@ def leader_election(group_id):
 				continue
 		if not got_answer:
 			logging.info("No response from other nodes, making self leader.")
-			become_leader(group_id)
+			become_leader()
 
 
 @dispatcher.public
