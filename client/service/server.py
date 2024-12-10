@@ -20,7 +20,7 @@ from structs.client import (
 	JoinGroupResponse,
 	ReceiveMessageResponse,
 	HeartbeatResponse,
-	UpdateGroupResponse
+	UpdateGroupResponse,
 )
 from structs.generic import Response
 from structs.nds import FetchGroupResponse, CreateGroupResponse, NDS_HeartbeatResponse
@@ -89,22 +89,6 @@ def serve(net=None, node_name=None):
 
 	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
 	rpc_server.serve_forever()
-
-
-def store_message(msg, msg_id, group_id, source_id, vector_clock):
-	"""Store a message locally."""
-	if group_id not in message_store:
-		message_store[group_id] = []
-	messages = message_store[group_id]
-	messages.append(
-		{
-			"msg_id": msg_id,
-			"source_id": source_id,
-			"msg": msg,
-			"vector_clock": vector_clock,
-		}
-	)
-	message_store[group_id] = messages
 
 
 def create_rpc_client(ip, port):
@@ -508,13 +492,12 @@ def heartbeat_thread(hb_id: int):
 							logging.warning("Leader said not ok, we got kicked!")
 							set_active_group(None)
 							networking.refresh_group(None)
-							# leader_election(group_id=group_id)
 					except Exception as e:
 						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
-						# leader_election(group_id=group_id)
+						leader_election(active.group_id)
 				else:
 					logging.error("Leader IP not found, initiating election...")
-					# leader_election(group_id=group_id)
+					leader_election(active.group_id)
 			else:
 				# This node is leader, send heartbeat to NDS
 				rpc_client = nds_servers[active.nds_ip]
@@ -528,7 +511,7 @@ def heartbeat_thread(hb_id: int):
 						if response.message == "group-deleted-womp-womp":
 							logging.error("NDS deleted the group :(")
 							set_active_group(None)
-							# TODO: UI should reflect this
+							networking.refresh_group(None)
 						else:
 							logging.error("NDS rejected heartbeat?")
 				except BaseException as e:
@@ -615,26 +598,29 @@ def overseer_thread(ov_id: int):
 		logging.info("Overseer killed.")
 
 
+### LEADER ELECTION
+
+
 def leader_election(group_id):
 	active_group = get_active_group()
-	peers = active_group.get("peers", None)
-	self_id = active_group.get("self_id", None)
-	vector_clock = active_group.get("vector_clock", None)
+	peers = active_group.peers
+	self_id = active_group.self_id
+	vector_clock = active_group.vector_clock
+
 	low_id_nodes = [peer_id for peer_id in peers if peer_id < self_id]
 	got_answer = None
 	if not low_id_nodes:
 		become_leader(group_id)
 	else:
 		for peer_id in low_id_nodes:
-			if peer_id == self_id:
-				continue
-			peer = peers.get(peer_id, None)
+			peer = peers[peer_id]
 			peer_ip = peer.ip
-			rpc_client = create_rpc_client(peer_ip, node_port)
+
 			try:
+				rpc_client = create_rpc_client(peer_ip, node_port)
 				remote_server = rpc_client.get_proxy()
 				response: Response = Response(
-					remote_server.election_message(self_id, vector_clock)
+					remote_server.election_message(group_id, self_id, vector_clock)
 				).to_json()
 				if response.ok:
 					got_answer = True
@@ -644,48 +630,89 @@ def leader_election(group_id):
 			become_leader(group_id)
 
 
-def update_nds_server():
+@dispatcher.public
+def election_message(group_id, candidate_id, candidate_vc):
 	group = get_active_group()
-	group_id = group.group_id
-	nds_ip = group.nds_ip
-	server = nds_servers.get(nds_ip, None)
-	if server:
-		remote_server = server.get_proxy()
-		response: UpdateGroupResponse = UpdateGroupResponse.from_json(
-			remote_server.update_group_leader(group_id)
-		)
-		if response.ok:
-			return (True, response.group)
-		elif not response.group:
-			# Group does not exist, Create a group with id?
-			pass
-		else:
-			# Leader is alive
-			pass
+	if group_id == group.group_id:
+		self_id = group.self_id
+		vector_clock = group.vector_clock
+		if self_id < candidate_id and vector_clock >= candidate_vc:
+			return Response(ok=True).to_json()
 	else:
-		logging.error("NDS server not found.")
-		return (False, {})
+		return Response(ok=False).to_json()
 
 
 def become_leader():
 	group = get_active_group()
 	self_id = group.self_id
-	did_update, new_group = update_nds_server()
-	if not did_update and new_group:
-		current_leader_id = new_group.leader_id
-		peers = new_group.peers
-		peer = peers.get(current_leader_id)
-		current_leader_ip = peer.ip
-		if current_leader_ip:
-			logging.info(f"Current leader IP from NDS: {current_leader_ip}")
-			# How to handle this case? set_active_group and refresh?
-			request_to_join_group(leader_ip=current_leader_ip, group_id=group.group_id)
-			# after joining new group
-			synchronize_with_leader()
-	else:
+	did_update, new_nds_group = update_nds_server()
+
+	if did_update and new_nds_group:
 		group.leader_id = self_id
 		broadcast_new_leader()
 		push_messages_to_peers()
+	else:
+		if (
+			not new_nds_group
+		):  # If NDS does not exist, we should remove the entire block...
+			# Group does not exist
+			set_active_group(None)
+			networking.refresh_group(None)
+
+		else:
+			# Old leader still exists
+			current_leader_ip = new_nds_group.leader_ip
+			new_group = request_to_join_group(current_leader_ip)
+
+			set_active_group(new_group)
+			networking.refresh_group(new_group)
+
+			# after joining new group
+			# synchronize_with_leader()
+
+
+def update_nds_server():
+	group = get_active_group()
+	group_id = group.group_id
+	nds_ip = group.nds_ip
+	server = nds_servers[nds_ip]
+	if server:
+		remote_server = server.get_proxy()
+		response: UpdateGroupResponse = UpdateGroupResponse.from_json(
+			remote_server.update_group_leader(group_id)
+		)
+		return (response.ok, response.group)
+	else:
+		logging.error("NDS server not found.")
+		return (False, None)
+
+
+@dispatcher.publics
+def still_leader_of_group(group_id):
+	group = get_active_group()
+	if group and group.group_id == group_id and group.leader_id == group.self_id:
+		return Response(ok=True).to_json()
+	else:
+		return Response(ok=False).to_json()
+
+
+### INTEGRATE BELOW
+
+
+def store_message(msg, msg_id, group_id, source_id, vector_clock):
+	"""Store a message locally."""
+	if group_id not in message_store:
+		message_store[group_id] = []
+	messages = message_store[group_id]
+	messages.append(
+		{
+			"msg_id": msg_id,
+			"source_id": source_id,
+			"msg": msg,
+			"vector_clock": vector_clock,
+		}
+	)
+	message_store[group_id] = messages
 
 
 def push_messages_to_peers():
@@ -797,16 +824,6 @@ def update_messages(group_id, messages):
 	return Response(
 		ok=False, message="messages were not received successfully."
 	).to_json()
-
-
-@dispatcher.public
-def election_message(group_id, candidate_id, candidate_vc):
-	group = get_active_group()
-	if group_id == group.group_id:
-		self_id = group.get("self_id", None)
-		vector_clock = group.get("vector_clock", 0)
-		if self_id < candidate_id and vector_clock >= candidate_vc:
-			return Response(ok=True, message="ACK").to_json()
 
 
 def broadcast_new_leader():

@@ -44,11 +44,13 @@ class FetchGroupResponse(Response):
 class CreateGroupResponse(Response):
 	group: NDS_Group
 
+
 @dataclass_json
 @dataclass
 class UpdateGroupResponse(Response):
-	group: NDS_Group
+	group: None | NDS_Group
 	message: str
+
 
 @dataclass_json
 @dataclass
@@ -62,14 +64,3 @@ class NDS_HeartbeatResponse(Response):
 	"""
 
 	message: str  # a status message
-
-@dataclass_json
-@dataclass
-class RemoveGroupResponse(Response):
-	groups: list[NDS_Group]
-
-@dataclass_json
-@dataclass
-class GetGroupLeaderResponse(Response):
-	groups: list[NDS_Group]
-	message: str  
