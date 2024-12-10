@@ -471,6 +471,10 @@ def heartbeat_thread(hb_id: int):
 				raise InterruptedError
 
 			active = get_active_group()
+
+			if not active:
+				raise InterruptedError
+
 			# If this node not leader, send heartbeat to leader
 			if active.self_id != active.leader_id:
 				leader_ip = active.peers[active.leader_id].ip
@@ -575,6 +579,10 @@ def overseer_thread(ov_id: int):
 			if ov_id in overseer_kill_flags:
 				raise InterruptedError
 
+			active = get_active_group()
+			if not active:
+				raise InterruptedError
+
 			nodes_to_delete = []
 			for node_id in last_node_response.keys():
 				new_val = last_node_response[node_id] + 1
@@ -584,7 +592,6 @@ def overseer_thread(ov_id: int):
 				else:
 					last_node_response[node_id] = new_val
 
-			active = get_active_group()
 			for node_id in nodes_to_delete:
 				del last_node_response[node_id]
 				del active.peers[node_id]
