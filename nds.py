@@ -40,7 +40,7 @@ leader_port = 50001
 nds_port = 50002
 
 overseer_interval = 1
-overseer_cycles_timeout = 10
+overseer_cycles_timeout = 6
 
 # Runtime constants
 dispatcher = RPCDispatcher()

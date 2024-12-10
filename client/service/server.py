@@ -48,7 +48,7 @@ heartbeat_min_interval = 2
 heartbeat_max_interval = 4
 
 overseer_interval = 1
-overseer_cycles_timeout = 10
+overseer_cycles_timeout = 6
 
 # Runtime constants
 dispatcher = RPCDispatcher()
