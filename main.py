@@ -4,7 +4,7 @@ from client.service import (
 	add_node_discovery_source,
 	create_group,
 	request_to_join_group,
-	leave_group,
+	request_to_leave_group,
 	send_message,
 )
 import sys
@@ -44,7 +44,7 @@ class Networking:
 
 	# Simply sets the active group to None, other systems should react accordingly
 	async def leave_group(self) -> None:
-		leave_group()
+		return request_to_leave_group()
 
 	# Called when sending a message to the active group
 	async def send_message(self, msg) -> bool:
