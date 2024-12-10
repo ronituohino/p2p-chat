@@ -249,6 +249,12 @@ def join_group(peer_name, group_id):
 	logging.info(f"Peer {peer_name} requesting to join group.")
 	try:
 		group = get_active_group()
+
+		if not group:
+			return JoinGroupResponse(
+				ok=False, message="not-in-any-group", assigned_peer_id=-1, group=None
+			).to_json()
+
 		peer_ip = get_ip()
 
 		if group.leader_id != group.self_id:
@@ -752,7 +758,7 @@ def become_leader():
 
 		new_group = request_to_join_group(current_leader_ip, new_nds_group.group_id)
 
-		logging.info(f"Gropu joined {new_group}")
+		logging.info(f"Group joined {new_group}")
 
 		set_active_group(new_group)
 		networking.refresh_group(new_group)
