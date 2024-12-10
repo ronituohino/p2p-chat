@@ -52,6 +52,13 @@ class Networks(Static):
 		tree = self.query_one("Tree")
 		self.network_labels = [nds.label.plain for nds in tree.root.children]
 
+	def reload_groups(self, new_groups: NDS_Group):
+		"""Reloads every group to self"""
+		logging.info("Refreshing every group")
+		tree = self.query_one("Tree")
+		for g in new_groups:
+			logging.info("g", g)
+
 	def refresh_group(self, group: Group | None):
 		logging.info("Refreshing group")
 		self.active_group_data = group

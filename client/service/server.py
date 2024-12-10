@@ -48,6 +48,8 @@ nds_port = 50002
 heartbeat_min_interval = 2
 heartbeat_max_interval = 4
 
+crawler_refresh_rate = 5
+
 overseer_interval = 1
 overseer_cycles_timeout = 6
 
@@ -113,6 +115,8 @@ def add_node_discovery_source(nds_ip):
 		nds = rpc_client.get_proxy()
 		response: FetchGroupResponse = FetchGroupResponse.from_json(nds.get_groups())
 		if response.ok:
+			# Begin crawling 8)
+			start_crawler()
 			return response.groups
 		else:
 			logging.error("Failed to add NDS")
@@ -437,6 +441,44 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 	return True
 
 
+### NDS Crawler
+#
+# Periodically fetch new group data from all NDS servers
+# Single thread will be enough
+
+crawler: threading.Thread = None
+
+
+def start_crawler():
+	global crawler
+	logging.info("Got signal to start crawler...")
+	if not crawler:
+		crawler = threading.Thread(target=crawler_thread, daemon=True)
+		crawler.start()
+	else:
+		logging.info("Crawler already running.")
+
+
+def crawler_thread():
+	try:
+		while True:
+			for nds_client in nds_servers.values():
+				nds = nds_client.get_proxy()
+				response: FetchGroupResponse = FetchGroupResponse.from_json(
+					nds.get_groups()
+				)
+				if response.ok:
+					# groups will be in response.groups in a list
+					pass
+
+			# Wait for a bit before fetching again
+			time.sleep(crawler_refresh_rate)
+	except Exception as e:
+		logging.error(f"EXC: Crawler failed {e}")
+	finally:
+		logging.info("Crawler killed.")
+
+
 ### HEARTBEAT
 
 # thread that sends rpc to leader or NDS every now and then
@@ -477,7 +519,7 @@ def heartbeat_thread(hb_id: int):
 			if not active:
 				raise InterruptedError
 
-			# If this node not leader, send heartbeat to leader
+			# If this node NOT leader, send heartbeat to leader
 			if active.self_id != active.leader_id:
 				leader_ip = active.peers[active.leader_id].ip
 				if leader_ip:
@@ -499,15 +541,11 @@ def heartbeat_thread(hb_id: int):
 							set_active_group(None)
 							networking.refresh_group(None)
 					except Exception as e:
-						logging.info(f"Exception caught: {e}")
-						try:
-							leader_election(active.group_id)
-						except Exception as ea:
-							logging.info(f"what {ea}")
 						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
+						leader_election(active.group_id)
 				else:
-					leader_election(active.group_id)
 					logging.error("Leader IP not found, initiating election...")
+					leader_election(active.group_id)
 			else:
 				# This node is leader, send heartbeat to NDS
 				rpc_client = nds_servers[active.nds_ip]
