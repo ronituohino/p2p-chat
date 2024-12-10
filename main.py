@@ -43,8 +43,8 @@ class Networking:
 		return group
 
 	# Simply sets the active group to None, other systems should react accordingly
-	async def leave_group(self) -> None:
-		return request_to_leave_group()
+	async def leave_group(self, group: Group) -> None:
+		return request_to_leave_group(group)
 
 	# Called when sending a message to the active group
 	async def send_message(self, msg) -> bool:

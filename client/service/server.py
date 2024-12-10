@@ -184,7 +184,7 @@ def start_overlord():
 	start_overseer()
 
 
-def request_to_leave_group():
+def request_to_leave_group(group: Group):
 	"""A way for client to leave a group."""
 
 	# If we are the leader of the group
@@ -194,8 +194,9 @@ def request_to_leave_group():
 	# we can just stop sending liveness pings to leader
 	# who then notices that we are gone
 
-	logging.info("Leaving group.")
-	set_active_group(None)
+	if group.group_id == get_active_group().group_id:
+		logging.info("Leaving group.")
+		set_active_group(None)
 
 
 def request_to_join_group(leader_ip, group_id) -> Group | None:

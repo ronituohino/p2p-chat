@@ -59,7 +59,6 @@ class Networks(Static):
 			if not active_group or node.data.group_id != active_group.group_id
 		]
 		for node in closed_groups:
-			logging.info(f"Closed node: {node}")
 			node.remove()
 
 		for group in new_groups:
@@ -79,7 +78,6 @@ class Networks(Static):
 	def refresh_group(self, group: Group | None):
 		group_node = self.find_active_group_node(group)
 		if group_node:
-			logging.info("Refreshing group")
 			group_node.remove_children()
 			if group:
 				self.add_peers(group_node, group)
@@ -104,7 +102,6 @@ class Networks(Static):
 				group_node.add_leaf(peer_node.name)
 
 	async def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
-		logging.info(f"on tree node expand {event.node.data}")
 		"""Called when any node is expanded in the tree"""
 		if isinstance(event.node.data, NDS_Group):
 			"""
@@ -127,9 +124,8 @@ class Networks(Static):
 
 	async def on_tree_node_collapsed(self, event: Tree.NodeCollapsed) -> None:
 		"""Called when any node is collapsed in the tree"""
-		logging.info(f"on tree node collapse {event.node.data}")
 		if isinstance(event.node.data, Group):
-			await self.app.net.leave_group()
+			await self.app.net.leave_group(event.node.data)
 			event.node.data = self.group_to_nds_group(event.node.data)
 			event.node.remove_children()
 
