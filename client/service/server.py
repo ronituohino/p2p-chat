@@ -191,6 +191,7 @@ def leave_group(group_id: str):
 	# we can just stop sending liveness pings to leader
 	# who then notices that we are gone
 
+	logging.info("Leaving group.")
 	set_active_group(None)
 
 
@@ -497,11 +498,12 @@ def heartbeat_thread(hb_id: int):
 							set_active_group(None)
 							networking.refresh_group(None)
 					except Exception as e:
-						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
+						logging.info("Exception caught")
 						leader_election(active.group_id)
+						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
 				else:
-					logging.error("Leader IP not found, initiating election...")
 					leader_election(active.group_id)
+					logging.error("Leader IP not found, initiating election...")
 			else:
 				# This node is leader, send heartbeat to NDS
 				rpc_client = nds_servers[active.nds_ip]
