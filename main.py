@@ -42,9 +42,9 @@ class Networking:
 		group = request_to_join_group(leader_ip)
 		return group
 
-	# Called when contacting leader of group to leave
-	async def leave_group(self, group_id) -> None:
-		leave_group(group_id)
+	# Simply sets the active group to None, other systems should react accordingly
+	async def leave_group(self) -> None:
+		leave_group()
 
 	# Called when sending a message to the active group
 	async def send_message(self, msg) -> bool:

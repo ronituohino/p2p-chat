@@ -176,13 +176,8 @@ def create_group(group_name, nds_ip) -> Group | None:
 		return None
 
 
-def leave_group(group_id: str):
+def leave_group():
 	"""A way for client to leave a group."""
-
-	active = get_active_group()
-	if not active or active.group_id != group_id:
-		logging.error(f"Cannot leave group {group_id} because it's not active")
-		return
 
 	# If we are the leader of the group
 	# we can just dip, and stop responding to messages
