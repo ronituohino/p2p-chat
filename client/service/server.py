@@ -498,8 +498,11 @@ def heartbeat_thread(hb_id: int):
 							set_active_group(None)
 							networking.refresh_group(None)
 					except Exception as e:
-						logging.info("Exception caught")
-						leader_election(active.group_id)
+						logging.info(f"Exception caught: {e}")
+						try:
+							leader_election(active.group_id)
+						except Exception as ea:
+							logging.info(f"what {ea}")
 						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
 				else:
 					leader_election(active.group_id)
@@ -611,7 +614,7 @@ def overseer_thread(ov_id: int):
 
 
 def leader_election(group_id):
-	logging.log("Starting leader election.")
+	logging.info("Starting leader election.")
 	active_group = get_active_group()
 	peers = active_group.peers
 	self_id = active_group.self_id
@@ -620,30 +623,31 @@ def leader_election(group_id):
 	low_id_nodes = [peer_id for peer_id in peers if peer_id < self_id]
 	got_answer = None
 	if not low_id_nodes:
-		logging.log("No other nodes found, making self leader.")
+		logging.info("No other nodes found, making self leader.")
 		become_leader(group_id)
 	else:
 		for peer_id in low_id_nodes:
 			peer = peers[peer_id]
 			peer_ip = peer.ip
 
-			logging.log(f"Pinging {peer_id} if they want to be leader...")
+			logging.info(f"Pinging {peer_id} if they want to be leader...")
 			try:
 				rpc_client = create_rpc_client(peer_ip, node_port)
 				remote_server = rpc_client.get_proxy()
 				response: Response = Response(
 					remote_server.election_message(group_id, self_id, vector_clock)
 				).to_json()
+
 				if response.ok:
-					logging.log(
+					logging.info(
 						f"{peer_id} responded that they can be leader. Stopping election."
 					)
 					got_answer = True
 			except Exception:
-				logging.log(f"No response from {peer_id}.")
+				logging.info(f"No response from {peer_id}.")
 				continue
 		if not got_answer:
-			logging.log("No response from other nodes, making self leader.")
+			logging.info("No response from other nodes, making self leader.")
 			become_leader(group_id)
 
 
@@ -664,11 +668,11 @@ def become_leader():
 	group = get_active_group()
 	self_id = group.self_id
 
-	logging.log("Pinging NDS that we want to be leader.")
+	logging.info("Pinging NDS that we want to be leader.")
 	did_update, new_nds_group = update_nds_server()
 
 	if did_update and new_nds_group:
-		logging.log("NDS made us leader.")
+		logging.info("NDS made us leader.")
 		group.leader_id = self_id
 
 		start_heartbeat()
@@ -677,20 +681,20 @@ def become_leader():
 		broadcast_new_leader()
 		# push_messages_to_peers()
 	elif not new_nds_group:
-		logging.log("NDS has deleted the group already.")
+		logging.info("NDS has deleted the group already.")
 		# Group does not exist
 		set_active_group(None)
 		networking.refresh_group(None)
 	else:
 		# Old leader still exists
 		current_leader_ip = new_nds_group.leader_ip
-		logging.log(
+		logging.info(
 			f"Some leader already exists, with ip {current_leader_ip}, requesting to join group."
 		)
 
 		new_group = request_to_join_group(current_leader_ip)
 
-		logging.log(f"Gropu joined {new_group}")
+		logging.info(f"Gropu joined {new_group}")
 
 		set_active_group(new_group)
 		networking.refresh_group(new_group)
