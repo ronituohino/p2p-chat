@@ -72,14 +72,15 @@ class Networks(Static):
 				nds.add(label=group.name, data=group)
 
 	def refresh_group(self, group: Group | None):
-		logging.info("Refreshing group")
-		self.active_group_data = group
-		group_node = self.active_group_node
-		group_node.remove_children()
-		if group:
-			self.add_peers(group_node, group)
-		else:
-			logging.info("Kicked.")
+		if self.active_group_node:
+			logging.info("Refreshing group")
+			self.active_group_data = group
+			group_node = self.active_group_node
+			group_node.remove_children()
+			if group:
+				self.add_peers(group_node, group)
+			else:
+				logging.info("Kicked.")
 
 	async def join_group(self, group_node, group: NDS_Group):
 		"""Join a group by contacting the leader, then add peers to the tree"""

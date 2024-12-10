@@ -147,7 +147,6 @@ def create_group(group_name, nds_ip) -> Group | None:
 	if not group_name:
 		raise ValueError("Group name cannot be empty.")
 
-	has_gone_wrong = False
 	try:
 		nds = rpc_client.get_proxy()
 		response: CreateGroupResponse = CreateGroupResponse.from_json(
@@ -166,27 +165,26 @@ def create_group(group_name, nds_ip) -> Group | None:
 				leader_id=0,
 				peers={0: this_node},
 			)
+
 			set_active_group(this_group)
+			start_overlord()
 
 			logging.info(f"Created group, {group_name}, with ID: {group_id}")
 			return this_group
 		else:
 			logging.error("Failed to create group")
-			has_gone_wrong = True
 			return None
 	except BaseException as e:
-		has_gone_wrong = True
 		logging.error(f"EXC: Failed to create group: {e}")
 		return None
 
-	finally:
-		if not has_gone_wrong:
-			logging.info("Starting heartbeat+overseer 🤪.")
-			start_heartbeat()
-			start_overseer()
+
+def start_overlord():
+	start_heartbeat()
+	start_overseer()
 
 
-def leave_group():
+def request_to_leave_group():
 	"""A way for client to leave a group."""
 
 	# If we are the leader of the group
@@ -713,9 +711,7 @@ def become_leader():
 		logging.info("NDS made us leader.")
 		group.leader_id = self_id
 
-		start_heartbeat()
-		start_overseer()
-
+		start_overlord()
 		broadcast_new_leader()
 		# push_messages_to_peers()
 	elif not new_nds_group:
