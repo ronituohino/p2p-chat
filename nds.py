@@ -169,6 +169,10 @@ def update_group_leader(group_id):
 	group = groups[group_id]
 	current_leader_ip = group.leader_ip
 
+	if new_leader_ip == current_leader_ip:
+		# if for some reason the current leader wins the election
+		return UpdateGroupResponse(ok=True, message="ok", group=group).to_json()
+
 	try:
 		rpc_client = create_rpc_client(current_leader_ip, leader_port)
 		leader = rpc_client.get_proxy()
