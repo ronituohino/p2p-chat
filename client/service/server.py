@@ -167,6 +167,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 			return this_group
 		else:
 			logging.error("Failed to create group")
+			has_gone_wrong = True
 			return None
 	except BaseException as e:
 		has_gone_wrong = True
