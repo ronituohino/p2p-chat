@@ -60,6 +60,9 @@ class Networking:
 	def refresh_group(self, group: Group) -> None:
 		self.ui.networks.refresh_group(group)
 
+	def reload_all_groups(self, groups: list[Group]) -> None:
+		self.ui.networks.reload_groups(groups)
+
 
 def main():
 	logging.basicConfig(filename="client.log", level=logging.INFO)
