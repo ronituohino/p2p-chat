@@ -268,29 +268,28 @@ def join_group(peer_name, group_id):
 			).to_json()
 
 		for peer in group.peers.values():
-			if peer.name == peer_name:
+			if peer.name == peer_name and peer.ip == peer_ip:
+				# Overseeing
+				last_node_response[peer.node_id] = 0
 				return JoinGroupResponse(
-					ok=False, message="already-in-group", assigned_peer_id=0, group=None
-				).to_json()
-			if peer.ip == peer_ip:
-				return JoinGroupResponse(
-					ok=False, message="ip-taken", assigned_peer_id=0, group=None
+					ok=True,
+					message="already-in-group",
+					assigned_peer_id=peer.node_id,
+					group=group,
 				).to_json()
 
 		assigned_peer_id = max(group.peers.keys(), default=0) + 1
+		# Overseeing
+		last_node_response[assigned_peer_id] = 0
 		group.peers[assigned_peer_id] = Node(
 			node_id=assigned_peer_id, name=peer_name, ip=peer_ip
 		)
-
-		# Overseeing
-		last_node_response[assigned_peer_id] = 0
-
 		networking.refresh_group(group)
 		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
-
 		return JoinGroupResponse(
 			ok=True, message="ok", group=group, assigned_peer_id=assigned_peer_id
 		).to_json()
+
 	except Exception as e:
 		logging.error(f"Error in join_group: {e}")
 		return JoinGroupResponse(
