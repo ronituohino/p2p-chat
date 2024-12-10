@@ -321,7 +321,11 @@ def send_message(msg) -> bool:
 		logging.info("We are not leader, broadcast through leader")
 		rpc_client = create_rpc_client(leader_ip, node_port)
 		return send_message_to_peer(
-			client=rpc_client, msg=msg, msg_id=msg_id, group_id=active.group_id
+			client=rpc_client,
+			msg=msg,
+			msg_id=msg_id,
+			group_id=active.group_id,
+			source_id=active.self_id,
 		)
 	else:
 		logging.error(
@@ -330,7 +334,7 @@ def send_message(msg) -> bool:
 		return False
 
 
-def send_message_to_peer(client, msg, msg_id, group_id):
+def send_message_to_peer(client, msg, msg_id, group_id, source_id):
 	"""Send a message to individual targeted peer.
 
 	Args:
@@ -340,7 +344,6 @@ def send_message_to_peer(client, msg, msg_id, group_id):
 		group_id (str): UID of the group.
 	"""
 	try:
-		source_id = get_active_group().self_id
 		peer = client.get_proxy()
 		response: ReceiveMessageResponse = ReceiveMessageResponse.from_json(
 			peer.receive_message(
@@ -441,7 +444,7 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 	logging.info(f"Broadcasting message to peers: {peers}")
 	for peer in other_peers:
 		rpc_client = create_rpc_client(peer.ip, node_port)
-		send_message_to_peer(rpc_client, msg, msg_id, group_id)
+		send_message_to_peer(rpc_client, msg, msg_id, group_id, source_id)
 	return True
 
 
