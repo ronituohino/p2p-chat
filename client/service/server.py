@@ -599,7 +599,7 @@ def receive_heartbeat(peer_id, group_id):
 	active = get_active_group()
 	if active.group_id != group_id:
 		return HeartbeatResponse(
-			ok=False, message="changed-group", peers=[], vector_clock=0
+			ok=False, message="changed-group", peers=None, vector_clock=0
 		).to_json()
 	if peer_id in active.peers:
 		last_node_response[peer_id] = 0
@@ -700,10 +700,9 @@ def leader_election(group_id):
 			try:
 				rpc_client = create_rpc_client(peer_ip, node_port)
 				remote_server = rpc_client.get_proxy()
-				response: Response = Response(
+				response: Response = Response.from_json(
 					remote_server.election_message(group_id, self_id, vector_clock)
-				).to_json()
-
+				)
 				if response.ok:
 					logging.info(
 						f"{peer_id} responded that they can be leader. Stopping election."
