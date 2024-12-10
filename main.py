@@ -60,8 +60,10 @@ class Networking:
 	def refresh_group(self, group: Group) -> None:
 		self.ui.networks.refresh_group(group)
 
-	def reload_all_groups(self, nds_ip: str, groups: list[Group]) -> None:
-		self.ui.networks.reload_groups(nds_ip, groups)
+	def reload_all_groups(
+		self, nds_ip: str, active_group: Group, groups: list[Group]
+	) -> None:
+		self.ui.networks.reload_groups(nds_ip, active_group, groups)
 
 
 def main():

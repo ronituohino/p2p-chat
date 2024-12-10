@@ -454,31 +454,35 @@ crawler: threading.Thread = None
 
 def start_crawler():
 	global crawler
-	logging.info("Got signal to start crawler...")
+	logging.info("CRWL: Got signal to start crawler...")
 	if not crawler:
 		crawler = threading.Thread(target=crawler_thread, daemon=True)
 		crawler.start()
 	else:
-		logging.info("Crawler already running.")
+		logging.info("CRWL: Crawler already running.")
 
 
 def crawler_thread():
+	logging.info("CRWL: Crawler starting.")
 	try:
 		while True:
+			logging.info("CRWL: Crawling.")
 			for nds_ip, nds_client in nds_servers.items():
 				nds = nds_client.get_proxy()
 				response: FetchGroupResponse = FetchGroupResponse.from_json(
 					nds.get_groups()
 				)
 				if response.ok:
-					networking.reload_all_groups(nds_ip, response.groups)
+					networking.reload_all_groups(
+						nds_ip, get_active_group(), response.groups
+					)
 
 			# Wait for a bit before fetching again
 			time.sleep(crawler_refresh_rate)
 	except Exception as e:
-		logging.error(f"EXC: Crawler failed {e}")
+		logging.error(f"EXC: CRWL: Crawler failed {e}")
 	finally:
-		logging.info("Crawler killed.")
+		logging.info("CRWL: Crawler killed.")
 
 
 ### HEARTBEAT
@@ -513,6 +517,7 @@ def heartbeat_thread(hb_id: int):
 	# Wrap in try clause, so that can be closed with .raise_exception()
 	try:
 		while True:
+			logging.info(f"HB: Sending heartbeat at {hb_id}.")
 			if hb_id in heartbeat_kill_flags:
 				raise InterruptedError
 
@@ -529,53 +534,53 @@ def heartbeat_thread(hb_id: int):
 						rpc_client = create_rpc_client(leader_ip, node_port)
 						leader = rpc_client.get_proxy()
 						logging.info(
-							f"Sending heartbeat to leader from {active.self_id}."
+							f"HB: Sending heartbeat to leader from {active.self_id}."
 						)
 						response: HeartbeatResponse = HeartbeatResponse.from_json(
 							leader.receive_heartbeat(active.self_id, active.group_id)
 						)
 						if response.ok:
-							logging.info("Refreshing peers.")
+							logging.info("HB: Refreshing peers.")
 							active.peers = response.peers
 							networking.refresh_group(active)
 						elif response.message == "changed-group":
-							logging.warning("Leader changed group.")
+							logging.warning("HB: Leader changed group.")
 							leader_election(active.group_id)
 						else:
 							# response.message == "you-got-kicked-lol"
-							logging.warning("Leader said not ok, we got kicked!")
+							logging.warning("HB: Leader said not ok, we got kicked!")
 							set_active_group(None)
 							networking.refresh_group(None)
 					except Exception as e:
-						logging.error(f"EXC: Error sending hearbeat to leader: {e}")
+						logging.error(f"EXC: HB: Error sending hearbeat to leader: {e}")
 						leader_election(active.group_id)
 				else:
-					logging.error("Leader IP not found, initiating election...")
+					logging.error("HB: Leader IP not found, initiating election...")
 					leader_election(active.group_id)
 			else:
 				# This node is leader, send heartbeat to NDS
 				rpc_client = nds_servers[active.nds_ip]
 				try:
 					nds = rpc_client.get_proxy()
-					logging.info("Sending heartbeat to NDS.")
+					logging.info("HB: Sending heartbeat to NDS.")
 					response: NDS_HeartbeatResponse = NDS_HeartbeatResponse.from_json(
 						nds.receive_heartbeat(active.group_id)
 					)
 					if not response.ok:
 						if response.message == "group-deleted-womp-womp":
-							logging.error("NDS deleted the group :(")
+							logging.error("HB: NDS deleted the group :(")
 							set_active_group(None)
 							networking.refresh_group(None)
 						else:
-							logging.error("NDS rejected heartbeat?")
+							logging.error("HB: NDS rejected heartbeat?")
 				except BaseException as e:
-					logging.error(f"EXC: Failed to send heartbeat to NDS: {e}")
+					logging.error(f"EXC: HB: Failed to send heartbeat to NDS: {e}")
 
 			# Sleep for a random interval, balances out leader election more
 			interval = random.uniform(heartbeat_min_interval, heartbeat_max_interval)
 			time.sleep(interval)
 	finally:
-		logging.info("Killing heartbeat.")
+		logging.info(f"HB: Killing heartbeat {hb_id}.")
 
 
 @dispatcher.public
@@ -630,6 +635,7 @@ def start_overseer():
 def overseer_thread(ov_id: int):
 	try:
 		while True:
+			logging.info(f"OV: Overseeing at {ov_id}.")
 			if ov_id in overseer_kill_flags:
 				raise InterruptedError
 
@@ -649,14 +655,14 @@ def overseer_thread(ov_id: int):
 			for node_id in nodes_to_delete:
 				del last_node_response[node_id]
 				del active.peers[node_id]
-				logging.info(f"Node {node_id} deleted -- no heartbeat from node.")
+				logging.info(f"OV: Node {node_id} deleted -- no heartbeat from node.")
 
 			networking.refresh_group(active)
 			time.sleep(overseer_interval)
 	except Exception as e:
-		logging.error(f"EXC: Overseer failed {e}")
+		logging.error(f"EXC: OV: Overseer failed {e}")
 	finally:
-		logging.info("Overseer killed.")
+		logging.info(f"OV: Overseer {ov_id} killed.")
 
 
 ### LEADER ELECTION
