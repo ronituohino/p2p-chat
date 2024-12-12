@@ -283,7 +283,7 @@ def test_direct_message_success(mock_environment):
         "group_name": "Test Group",
         "self_id": 0,
         "leader_id": 0,
-        "vector_clock": 2,
+        "logical_clock": 2,
         "peers": {
             0: {"name": "leader", "ip": "127.0.0.2"},
             1: {"name": "peer_1", "ip": "127.0.0.1"},
@@ -353,16 +353,16 @@ def test_get_group_info(mock_environment):
         "group_name": "Test Group",
         "self_id": "peer_1",
         "leader_id": "leader_1",
-        "vector_clock": 0,
+        "logical_clock": 0,
         "peers": {}
     }
 
-    group_name, self_id, leader_id, vector_clock, peers = get_group_info("group_1")
+    group_name, self_id, leader_id, logical_clock, peers = get_group_info("group_1")
 
     assert group_name == "Test Group"
     assert self_id == "peer_1"
     assert leader_id == "leader_1"
-    assert vector_clock == 0
+    assert logical_clock == 0
     assert peers == {}
 
 

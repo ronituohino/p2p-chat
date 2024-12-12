@@ -40,7 +40,7 @@ class StubNetworking:
 			group_id="-1",
 			leader_id="0",
 			self_id="0",
-			vector_clock=0,
+			logical_clock=0,
 			peers={0: Node(node_id=0, name="jakey", ip="123")},
 			nds_ip="213",
 		)
@@ -61,7 +61,7 @@ class StubNetworking:
 				1: Node(node_id="1", ip="551", name="p3kk4"),
 				2: Node(node_id="2", ip="413", name="kklP"),
 			},
-			vector_clock=12,
+			logical_clock=12,
 		)
 
 	# Called when contacting leader of network to leave

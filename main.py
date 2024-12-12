@@ -52,6 +52,13 @@ class Networking:
 
 	## INBOUND
 
+	async def refresh_chat(self, messages):
+		"""Fetch messages and refresh the chat display"""
+		self.ui.chat.clear()
+		messages = messages.sort(key=lambda msg: msg["clock"])
+		for msg_data in messages:
+			self.receive_message(msg_data["source_name"], msg_data["msg"])
+
 	# Called when a message arrived to the active group
 	def receive_message(self, source_name, msg) -> None:
 		msg = f"{source_name}: {msg}"
