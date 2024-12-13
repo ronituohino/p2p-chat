@@ -48,6 +48,7 @@ class ChatApp(App):
 			thread.start()
 
 	def compose(self) -> ComposeResult:
+		"""compose the main layout"""
 		with Horizontal():
 			yield Networks()
 			yield Chat()
