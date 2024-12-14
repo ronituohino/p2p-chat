@@ -901,7 +901,7 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 def synchronize_with_leader():
 	group = get_active_group()
 	leader_id = group.leader_id
-	leader_ip = group.peers.get(leader_id, {}).get("ip")
+	leader_ip = group.peers.get(leader_id, {}).ip
 
 	if not leader_ip:
 		logging.warning("Leader IP not found. Synchronization aborted.")
@@ -1013,17 +1013,17 @@ def synchronize_messages_with_peers():
 		try:
 			synchronize_with_peer(group, peer, all_messages)
 		except Exception as e:
-			logging.error(f"Error synchronizing with peer {peer["peer_id"]}: {str(e)}")
+			logging.error(f"Error synchronizing with peer {peer.peer_id}: {str(e)}")
 
 
 def synchronize_with_peer(group, peer, all_messages):
 	"""Synchronize messages with a specific peer"""
-	peer_id = peer["peer_id"]
+	peer_id = peer.peer_id
 	if peer_id == group.self_id:
 		return
 
 	try:
-		rpc_client = create_rpc_client(peer["ip"], node_port)
+		rpc_client = create_rpc_client(peer.ip, node_port)
 		remote_server = rpc_client.get_proxy()
 
 		peer_logical_clock = get_peer_logical_clock(remote_server, group, peer_id)
