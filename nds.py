@@ -1,4 +1,4 @@
-import socket
+
 import uuid
 import gevent
 import logging
