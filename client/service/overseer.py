@@ -4,31 +4,20 @@ import logging
 import threading
 import time
 
-overseer: threading.Thread = None
-overseer_counter = 0  # set to the id of the heartbeat
-overseer_kill_flags = set()
-
-overseer_interval = 1
-overseer_cycles_timeout = 6
-
 
 def start_overseer(app):
 	"""Starts overseeing thread"""
-	global overseer
-	global overseer_counter
-	global overseer_kill_flags
-
-	if overseer:
+	if app.overseer:
 		# Kill existing heartbeat
-		logging.info(f"Killing overseer {overseer_counter}.")
-		overseer_kill_flags.add(overseer_counter)
+		logging.info(f"Killing overseer {app.overseer_counter}.")
+		app.overseer_kill_flags.add(app.overseer_counter)
 
 	logging.info("Starting overseer.")
-	overseer_counter += 1
-	overseer = threading.Thread(
-		target=overseer_thread, args=(app, overseer_counter,), daemon=True
+	app.overseer_counter += 1
+	app.overseer = threading.Thread(
+		target=overseer_thread, args=(app, app.overseer_counter), daemon=True
 	)
-	overseer.start()
+	app.overseer.start()
 
 
 def overseer_thread(app, ov_id: int):
@@ -36,7 +25,7 @@ def overseer_thread(app, ov_id: int):
 	try:
 		while True:
 			logging.info(f"OV: Overseeing at {ov_id}.")
-			if ov_id in overseer_kill_flags:
+			if ov_id in app.overseer_kill_flags:
 				raise InterruptedError
 
 			if (
@@ -60,7 +49,7 @@ def overseer_thread(app, ov_id: int):
 				logging.info(f"OV: Node {node_id} deleted -- no heartbeat from node.")
 
 			app.networking.refresh_group(app.active_group)
-			time.sleep(overseer_interval)
+			time.sleep(app.overseer_interval)
 	except Exception as e:
 		logging.error(f"EXC: OV: Overseer failed {e}")
 	finally:

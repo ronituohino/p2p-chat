@@ -51,7 +51,15 @@ class AppState:
 		instance.heartbeat_counter = 0  # set to the id of the heartbeat
 		instance.heartbeat_kill_flags = set()
 
+		instance.crawler: threading.Thread = None
+		instance.crawler_refresh_rate = 5
 
+		instance.overseer: threading.Thread = None
+		instance.overseer_counter = 0  # set to the id of the heartbeat
+		instance.overseer_kill_flags = set()
+
+		instance.overseer_interval = 1
+		instance.overseer_cycles_timeout = 6
 	@property
 	def active_group(self):
 		return self._active_group

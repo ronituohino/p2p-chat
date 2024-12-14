@@ -18,10 +18,10 @@ def start_heartbeat(app):
 
 	logging.info("Starting heartbeat sending.")
 	app.heartbeat_counter += 1
-	heartbeat = threading.Thread(
+	app.heartbeat = threading.Thread(
 		target=heartbeat_thread, args=(app, app.heartbeat_counter,), daemon=True
 	)
-	heartbeat.start()
+	app.heartbeat.start()
 
 
 def heartbeat_thread(app, hb_id: int):

@@ -54,7 +54,7 @@ class Networking:
 
 	def refresh_chat(self, messages, self_id):
 		"""Fetch messages and refresh the chat display"""
-		logging.info(f"Refreshing chat with messages: {messages}")
+		logging.info(f"Refreshing chat with messages: {len(messages)}")
 		self.ui.chat.clear_chat()
 		if not messages:
 			logging.warning("No messages to refresh.")

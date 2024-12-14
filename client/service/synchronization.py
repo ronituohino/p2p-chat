@@ -47,8 +47,10 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 
 		peers = group.peers
 		if source_id not in peers:
-			logging.warning(f"Source ID {source_id} not found in peers. Skipping message.")
-			name = "Unknown"
+			logging.warning(
+				f"Source ID {source_id} not found in peers. Skipping message."
+			)
+			name = "Unknown (left)"
 		else:
 			peer = peers[source_id]
 			name = peer.name
@@ -98,7 +100,9 @@ def synchronize_with_leader(app):
 		remote_server = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
 		response: CallForSynchronizationResponse = (
 			CallForSynchronizationResponse.from_json(
-				remote_server.call_for_synchronization(group.group_id, app.logical_clock)
+				remote_server.call_for_synchronization(
+					group.group_id, app.logical_clock
+				)
 			)
 		)
 		if response.ok:
@@ -231,7 +235,9 @@ def receive_missing_messages(app, remote_server, group, peer_id):
 	try:
 		response: CallForSynchronizationResponse = (
 			CallForSynchronizationResponse.from_json(
-				remote_server.call_for_synchronization(group.group_id, app.logical_clock)
+				remote_server.call_for_synchronization(
+					group.group_id, app.logical_clock
+				)
 			)
 		)
 		if not response.ok:

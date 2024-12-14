@@ -9,26 +9,21 @@ import time
 from structs.nds import FetchGroupResponse
 
 
-crawler: threading.Thread = None
-crawler_refresh_rate = 5
-
-
 def start_crawler(app):
 	"""NDS crawler to periodically fetch group data from NDS servers"""
-	global crawler
 	logging.info("CRWL: Got signal to start crawler...")
-	if not crawler:
-		crawler = threading.Thread(
+	if not app.crawler:
+		app.crawler = threading.Thread(
 			target=crawler_thread,
-			args=(app.nds_servers, app.networking, app.active_group),
+			args=(app, app.nds_servers, app.networking, app.active_group),
 			daemon=True,
 		)
-		crawler.start()
+		app.crawler.start()
 	else:
 		logging.info("CRWL: Crawler already running.")
 
 
-def crawler_thread(nds_servers, networking, group):
+def crawler_thread(app, nds_servers, networking, group):
 	logging.info("CRWL: Crawler starting.")
 	try:
 		while True:
@@ -41,7 +36,7 @@ def crawler_thread(nds_servers, networking, group):
 					networking.reload_all_groups(nds_ip, group, response.groups)
 
 			# Wait for a bit before fetching again
-			time.sleep(crawler_refresh_rate)
+			time.sleep(app.crawler_refresh_rate)
 	except Exception as e:
 		logging.error(f"EXC: CRWL: Crawler failed {e}")
 	finally:
