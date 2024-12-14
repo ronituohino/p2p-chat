@@ -52,9 +52,7 @@ class Chat(Static):
 		message = event.value.strip()
 		event.input.clear()
 		if message:
-			sent = await self.app.net.send_message(message)
-			if sent:
-				self.write(f"@me: {message}")
+			await self.app.net.send_message(message)
 
 	def compose(self) -> ComposeResult:
 		yield RichLog(wrap=True, auto_scroll=True)

@@ -455,9 +455,7 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 	logical_clock = group.logical_clock + 1
 	logging.info(f"Broadcasting message to peers: {peers}")
 	for peer in other_peers:
-		send_message_to_peer(
-			peer.ip, msg, msg_id, group_id, source_id, logical_clock
-		)
+		send_message_to_peer(peer.ip, msg, msg_id, group_id, source_id, logical_clock)
 	return True
 
 
@@ -860,6 +858,7 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 	global message_store
 
 	group = get_active_group()
+
 	if not group:
 		logging.error("No active group found.")
 		return
@@ -870,9 +869,12 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 
 		messages = message_store[group_id]
 
-		if any(msg["msg_id"] == msg_id for msg in messages):
+		if msg_id in received_messages:
 			logging.info(f"Duplicate message {msg_id} ignored.")
 			return
+
+		if logical_clock > group.logical_clock:
+			group.logical_clock = logical_clock
 
 		peers = group.peers
 		peer = peers[source_id]
@@ -887,9 +889,10 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 		)
 
 		# Limit message capacity to 2000 latest
-		if len(messages) > 500:
+		max_capacity = 2000
+		if len(messages) > max_capacity:
 			messages.sort(key=lambda msg: msg["logical_clock"], reverse=True)
-			del messages[500:]
+			messages = messages[-max_capacity:]
 
 		message_store[group_id] = messages
 
@@ -968,7 +971,7 @@ def store_missing_messages(group_id, missing_messages):
 		max_logical_clock = max(
 			msg_data["logical_clock"] for msg_data in missing_messages
 		)
-		group.logical_clock = max(group.get("logical_clock", 0), max_logical_clock)
+		group.logical_clock = max(group["logical_clock"], max_logical_clock)
 		logging.info(f"Updated logical clock to {group.logical_clock}")
 	else:
 		logging.info("No new messages were added.")
