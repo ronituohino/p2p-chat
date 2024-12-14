@@ -340,9 +340,9 @@ def send_message(msg) -> bool:
 		# We are not the leader, send to leader who broadcasts to others
 		logging.info("We are not leader, broadcast through leader")
 		rpc_client = create_rpc_client(leader_ip, node_port)
-		rpc_client = rpc_client.get_proxy()
+		client = rpc_client.get_proxy()
 		return send_message_to_peer(
-			client=rpc_client,
+			client=client,
 			msg=msg,
 			msg_id=msg_id,
 			group_id=active.group_id,

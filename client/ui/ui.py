@@ -67,7 +67,3 @@ class ChatApp(App):
 		elif action == "create_group" and not self.networks.network_labels:
 			return None
 		return True
-
-	def clear_chat_display(self):
-		if self.chat:
-			self.chat.clear_chat()
