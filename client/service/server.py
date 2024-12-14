@@ -82,7 +82,7 @@ def set_active_group(group: Group):
 message_store: dict[str, Message] = {}  # key is group_id
 received_messages = set()
 message_timestamps = {}
-MESSAGE_TTL = 300 
+MESSAGE_TTL = 300
 ### SERVER STARTUP, RPC CONNECTIONS, NDS ADDITION
 
 
@@ -324,18 +324,19 @@ def send_message(msg) -> bool:
 	leader_ip = active.peers[active.leader_id].ip
 	msg_id = str(uuid.uuid4())
 
-	logging.info(f"Networking message to leader {leader_ip}")
+	store_message(
+		msg,
+		msg_id,
+		active_group.group_id,
+		active_group.self_id,
+		active_group.logical_clock,
+	)
 
+	logging.info(f"Networking message to leader {leader_ip}")
 	if active.self_id == active.leader_id:
 		# We are the leader, broadcast to others
 		logging.info("We are leader, broadcast")
-		store_message(
-			msg,
-			msg_id,
-			active_group.group_id,
-			active_group.self_id,
-			active_group.logical_clock,
-		)
+
 		active_group.logical_clock += 1
 		return message_broadcast(msg, msg_id, active.group_id, active.self_id)
 	elif leader_ip:
@@ -880,6 +881,11 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 
 		peers = group.peers
 		peer = peers[source_id]
+
+		is_me = None
+		if source_id == group.self_id:
+			is_me = "@me"
+
 		messages.append(
 			{
 				"msg_id": msg_id,
@@ -901,7 +907,7 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 	logging.info("Message has been stored, refreshing chat")
 	if hasattr(networking, "refresh_chat"):
 		try:
-			networking.refresh_chat(messages)
+			networking.refresh_chat(messages, is_me)
 			logging.info("Chat has been refreshed")
 		except Exception as e:
 			logging.error(f"Error refreshing chat_ {e}")
@@ -918,7 +924,8 @@ def maintain_received_messages():
 		current_time = time.time()
 		with received_messages_lock:
 			keys_to_remove = [
-				msg_id for msg_id, timestamp in message_timestamps.items()
+				msg_id
+				for msg_id, timestamp in message_timestamps.items()
 				if current_time - timestamp > MESSAGE_TTL
 			]
 			for key in keys_to_remove:
