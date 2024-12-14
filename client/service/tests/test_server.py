@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 
 def start_server():
-    serve(port=5000)
+    serve(port=5001)
 
 
 @pytest.fixture

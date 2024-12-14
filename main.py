@@ -48,7 +48,6 @@ class Networking:
 
 	# Called when sending a message to the active group
 	async def send_message(self, msg) -> bool:
-		self.receive_message("@me", msg)
 		return send_message(msg)
 
 	## INBOUND
@@ -60,9 +59,10 @@ class Networking:
 		if not messages:
 			logging.warning("No messages to refresh.")
 			return 
-		messages =sorted(messages, key=lambda msg: msg["clock"])
+		messages = sorted(messages, key=lambda msg: msg["clock"])
 		for msg_data in messages:
-			self.receive_message(msg_data["source_name"], msg_data["msg"])
+			msg = f"{msg_data["source_name"]}: {msg_data["msg"]}"
+			self.ui.chat.write(msg)
 
 	# Called when a message arrived to the active group
 	def receive_message(self, source_name, msg) -> None:

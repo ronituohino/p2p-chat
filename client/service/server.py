@@ -45,8 +45,8 @@ def get_ip():
 
 
 # Constants
-node_port = 50001
-nds_port = 50002
+node_port = 5001
+nds_port = 5002
 
 heartbeat_min_interval = 2
 heartbeat_max_interval = 4
@@ -234,7 +234,7 @@ def request_to_join_group(leader_ip, group_id) -> Group | None:
 			group = get_active_group()
 			networking.refresh_group(group)
 			return None
-	except BaseException as e:
+	except ConnectionError as e:
 		logging.error(f"EXC: Failed to join group: {e}")
 		return None
 
