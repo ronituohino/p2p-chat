@@ -368,7 +368,11 @@ def send_message_to_peer(client, msg, msg_id, group_id, source_id, logical_clock
 	try:
 		response: ReceiveMessageResponse = ReceiveMessageResponse.from_json(
 			client.receive_message(
-				msg=msg, msg_id=msg_id, group_id=group_id, source_id=source_id
+				msg=msg,
+				msg_id=msg_id,
+				group_id=group_id,
+				source_id=source_id,
+				leader_logical_clock=logical_clock,
 			)
 		)
 		if response.ok:
