@@ -376,6 +376,7 @@ def send_message_to_peer(client, msg, msg_id, group_id, source_id, logical_clock
 			)
 		)
 		if response.ok:
+			logging.info("Leader received message successfully.")
 			return True
 		if not response.ok:
 			logging.info(f"Failed to send message: {response.message}")
@@ -386,7 +387,7 @@ def send_message_to_peer(client, msg, msg_id, group_id, source_id, logical_clock
 
 
 @dispatcher.public
-def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock = 0):
+def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 	"""Handle receiving a message from peer.
 	If message is meant for current node, then it will store it, otherwise it will
 	broadcast it forward.
@@ -893,9 +894,11 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 
 		message_store[group_id] = messages
 
+	logging.info("Message has been stored, refreshing chat")
 	if hasattr(networking, "refresh_chat"):
 		try:
 			networking.refresh_chat(messages)
+			logging.info("Chat has been refreshed")
 		except Exception as e:
 			logging.error(f"Error refreshing chat_ {e}")
 	else:
