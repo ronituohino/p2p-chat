@@ -81,6 +81,8 @@ def set_active_group(group: Group):
 
 message_store: dict[str, Message] = {}  # key is group_id
 received_messages = set()
+message_timestamps = {}
+MESSAGE_TTL = 300 
 ### SERVER STARTUP, RPC CONNECTIONS, NDS ADDITION
 
 
@@ -889,7 +891,7 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 		)
 
 		# Limit message capacity to 2000 latest
-		max_capacity = 2000
+		max_capacity = 5000
 		if len(messages) > max_capacity:
 			messages.sort(key=lambda msg: msg["logical_clock"], reverse=True)
 			messages = messages[-max_capacity:]
@@ -908,6 +910,25 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 
 	with received_messages_lock:
 		received_messages.add(msg_id)
+
+
+def maintain_received_messages():
+	"""Thread that periodically removes received messages."""
+	while True:
+		current_time = time.time()
+		with received_messages_lock:
+			keys_to_remove = [
+				msg_id for msg_id, timestamp in message_timestamps.items()
+				if current_time - timestamp > MESSAGE_TTL
+			]
+			for key in keys_to_remove:
+				received_messages.discard(key)
+				del message_timestamps[key]
+		time.sleep(10)
+
+
+cleanup_thread = threading.Thread(target=maintain_received_messages, daemon=True)
+cleanup_thread.start()
 
 
 # Used on startup, when node joins it can synchronize its messages with leader.
