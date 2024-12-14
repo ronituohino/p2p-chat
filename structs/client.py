@@ -81,7 +81,6 @@ class Group:
 	name: str
 	leader_id: int
 	self_id: int
-	logical_clock: int
 	peers: dict[int, Node]
 	nds_ip: str
 
