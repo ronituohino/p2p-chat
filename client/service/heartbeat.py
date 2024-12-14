@@ -53,27 +53,28 @@ def heartbeat_thread(app, hb_id: int):
 
 def send_heartbeat_to_leader(app):
 	active = app.active_group
-	leader_ip = active.peers[active.leader_id].ip
-	if not leader_ip:
-		logging.error("HB: Leader IP not found, initiating election...")
+	leader = active.peers.get(active.leader_id)
+	if not leader:
+		logging.error("HB: Leader not found, initiating election...")
 		app.leader_election(app, active.group_id)
-		return
+		return None
 
 	try:
-		leader = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
+		leader_ip = leader.ip
+		client = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
 		logging.info(f"HB: Sending heartbeat to leader from {active.self_id}.")
 		response: HeartbeatResponse = HeartbeatResponse.from_json(
-			leader.receive_heartbeat(active.self_id, active.group_id)
+			client.receive_heartbeat(active.self_id, active.group_id)
 		)
 		if response.ok:
 			logging.info("HB: Refreshing peers.")
-			active.peers = response.peers
+			for peer_id, peer_data in response.peers.items():
+				active.peers[peer_id] = peer_data
 			app.networking.refresh_group(active)
 		elif response.message == "changed-group":
 			logging.warning("HB: Leader changed group.")
 			app.leader_election(app, active.group_id)
 		else:
-			# response.message == "you-got-kicked-lol"
 			logging.warning("HB: Leader said not ok, we got kicked!")
 			app.active_group = None
 			app.networking.refresh_group(None)

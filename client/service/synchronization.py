@@ -48,7 +48,7 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 		peers = group.peers
 		if source_id not in peers:
 			logging.warning(
-				f"Source ID {source_id} not found in peers. Skipping message."
+				f"Source ID {source_id} not found in peers."
 			)
 			name = "Unknown (left)"
 		else:
@@ -68,8 +68,7 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 		# Limit message capacity to 2000 latest
 		max_capacity = 5000
 		if len(messages) > max_capacity:
-			messages.sort(key=lambda msg: msg["logical_clock"], reverse=True)
-			messages = messages[-max_capacity:]
+			messages = sorted(messages, key=lambda msg: msg["logical_clock"], reverse=True)[-max_capacity:]
 
 		app.message_store[group_id] = messages
 
@@ -91,11 +90,12 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 def synchronize_with_leader(app):
 	group = app.active_group
 	leader_id = group.leader_id
-	leader_ip = group.peers.get(leader_id, {}).ip
-	if not leader_ip:
-		logging.warning("Leader IP not found. Synchronization aborted.")
+	leader = group.peers.get(leader_id)
+	if not leader:
+		logging.warning("Leader not found in peers. Synchronization aborted.")
 		return False
 
+	leader_ip = leader.ip
 	try:
 		remote_server = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
 		response: CallForSynchronizationResponse = (
@@ -146,8 +146,8 @@ def store_missing_messages(app, group_id, missing_messages):
 		max_logical_clock = max(
 			msg_data["logical_clock"] for msg_data in missing_messages
 		)
-		logical_clock = max(app.logical_clock, max_logical_clock)
-		logging.info(f"Updated logical clock to {logical_clock}")
+		app.logical_clock = max(app.logical_clock, max_logical_clock)
+		logging.info(f"Updated logical clock to {app.logical_clock}")
 	else:
 		logging.info("No new messages were added.")
 
@@ -171,13 +171,14 @@ def synchronize_with_peer(app, group, peer, all_messages):
 	"""Synchronize messages with a specific peer"""
 	peer_id = peer.peer_id
 	if peer_id == group.self_id:
-		return
+		return None
 
 	try:
 		remote_server = app.create_rpc_client(peer.ip, app.node_port).get_proxy()
 		peer_logical_clock = get_peer_logical_clock(remote_server, group, peer_id)
 		if not peer_logical_clock:
-			return
+			logging.warning(f"Skipping peer {peer.peer_id} due to unreachable clock.")
+			return None
 
 		send_missing_messages(
 			remote_server, group, all_messages, peer_logical_clock, peer_id
@@ -247,7 +248,7 @@ def receive_missing_messages(app, remote_server, group, peer_id):
 		in_missing_messages = response.missing_messages
 		if in_missing_messages:
 			store_missing_messages(
-				app, group_id=group.group_id, missing_messages=in_missing_messages
+				app=app, group_id=group.group_id, missing_messages=in_missing_messages
 			)
 			logging.info(
 				f"Received {len(in_missing_messages)} messages from peer {peer_id}."

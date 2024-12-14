@@ -1,5 +1,5 @@
 import threading
-from structs.client import Group, Message
+from structs.client import Group
 from tinyrpc import RPCClient
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.http import HttpPostClientTransport
@@ -18,20 +18,20 @@ class AppState:
 	def _initialize_state(instance):
 		"""Initializes all shared state variables."""
 		instance.name = None
-		instance.active_group: Group = None  # type: ignore
+		instance._active_group: Group = None 
 		instance.logical_clock = 0
 
-		instance.message_store: dict[str, Message] = {}  # type: ignore
+		instance.message_store = {} 
 		instance.received_messages = set()
 		instance.message_timestamps = {}
 		instance.MESSAGE_TTL = 300
 
-		instance.last_node_response: dict[str, int] = {}  # type: ignore # key is node_id, used to check when last heard from node, value is the overseer cycles
+		instance.last_node_response = {}  # key is node_id, used to check when last heard from node, value is the overseer cycles
 
 		instance.node_port = 5001
 		instance.nds_port = 5002
 
-		instance.nds_servers: dict[str, RPCClient] = {}  # type: ignore
+		instance.nds_servers = {}  
 		instance.dispatcher = None
 		instance.networking = None
 
@@ -47,19 +47,20 @@ class AppState:
 		instance.heartbeat_min_interval = 2
 		instance.heartbeat_max_interval = 4
 
-		instance.heartbeat: threading.Thread = None
+		instance.heartbeat = None 
 		instance.heartbeat_counter = 0  # set to the id of the heartbeat
 		instance.heartbeat_kill_flags = set()
 
-		instance.crawler: threading.Thread = None
+		instance.crawler = None
 		instance.crawler_refresh_rate = 5
 
-		instance.overseer: threading.Thread = None
+		instance.overseer = None
 		instance.overseer_counter = 0  # set to the id of the heartbeat
 		instance.overseer_kill_flags = set()
 
 		instance.overseer_interval = 1
 		instance.overseer_cycles_timeout = 6
+
 	@property
 	def active_group(self):
 		return self._active_group
@@ -87,4 +88,6 @@ class AppState:
 		return rpc_client
 
 	def get_ip(self):
+		if not self.env:
+			return "Unknown IP"
 		return self.env.get("REMOTE_ADDR", "Unknown IP")
