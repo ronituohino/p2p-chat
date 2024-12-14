@@ -47,9 +47,7 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 
 		peers = group.peers
 		if source_id not in peers:
-			logging.warning(
-				f"Source ID {source_id} not found in peers."
-			)
+			logging.warning(f"Source ID {source_id} not found in peers.")
 			name = "Unknown (left)"
 		else:
 			peer = peers[source_id]
@@ -68,7 +66,9 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 		# Limit message capacity to 2000 latest
 		max_capacity = 5000
 		if len(messages) > max_capacity:
-			messages = sorted(messages, key=lambda msg: msg["logical_clock"], reverse=True)[-max_capacity:]
+			messages = sorted(
+				messages, key=lambda msg: msg["logical_clock"], reverse=True
+			)[-max_capacity:]
 
 		app.message_store[group_id] = messages
 
@@ -114,6 +114,7 @@ def synchronize_with_leader(app):
 				store_missing_messages(app, group.group_id, missing_messages)
 			else:
 				logging.info("No missing messages from leader")
+
 		else:
 			logging.warning(f"Synchronization failed: {response.message}")
 	except Exception as e:

@@ -12,10 +12,12 @@ from structs.nds import FetchGroupResponse
 def start_crawler(app):
 	"""NDS crawler to periodically fetch group data from NDS servers"""
 	logging.info("CRWL: Got signal to start crawler...")
-	if not app.crawler:
+	if not app.crawler or not app.crawler.is_alive():
+		
+		logging.info("CRWL: Crawler starting to run.")
 		app.crawler = threading.Thread(
 			target=crawler_thread,
-			args=(app, app.nds_servers, app.networking, app.active_group),
+			args=(app, app.nds_servers, app.networking, app.active_group,),
 			daemon=True,
 		)
 		app.crawler.start()

@@ -337,37 +337,52 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 		and group.leader_id != group.self_id
 	):
 		logging.warning("Detected missing messages. Initiating synchronization.")
-		synchronize_with_leader(app)
+		try:
+			synchronize_with_leader(app)
+		except Exception as e:
+			logging.error(f"Error during synchronization with leader: {e}")
 
 	current_logical_clock = max(app.logical_clock, leader_logical_clock) + 1
 	app.logical_clock = current_logical_clock
 
 	logging.info("Storing the message...")
-	store_message(app, msg, msg_id, group_id, source_id, current_logical_clock)
+	try: 
+		store_message(app, msg, msg_id, group_id, source_id, current_logical_clock)
+	except Exception as e:
+		logging.error(f"Error storing the message: {e}")
+		return ReceiveMessageResponse(ok=False, message="store-message-failed").to_json()
 
 	if group.self_id == group.leader_id:
 		logging.info("Broadcasting the message forward.")
-		message_broadcast(app, msg, msg_id, group_id, source_id)
+		try:
+			message_broadcast(app, msg, msg_id, group_id, source_id)
+		except Exception as e:
+			logging.error(f"Error broadcasting the message: {e}")
+			ReceiveMessageResponse(ok=False, message="store-message-failed").to_json()
 	return ReceiveMessageResponse(ok=True, message="ok").to_json()
 
 
 @dispatcher.public
 def receive_heartbeat(peer_id, group_id):
-	active = app.active_group
-	if active.group_id != group_id:
-		return HeartbeatResponse(
-			ok=False, message="changed-group", peers=None, logical_clock=0
-		).to_json()
+	with app.overseer_lock:
+		active = app.active_group
+		if active.group_id != group_id:
+			return HeartbeatResponse(
+				ok=False, message="changed-group", peers=None, logical_clock=0
+			).to_json()
 
-	if peer_id in active.peers:
-		app.last_node_response[peer_id] = 0
-		return HeartbeatResponse(
-			ok=True, message="ok", peers=active.peers, logical_clock=app.logical_clock
-		).to_json()
+		if peer_id in active.peers:
+			app.last_node_response[peer_id] = 0
+			return HeartbeatResponse(
+				ok=True,
+				message="ok",
+				peers=active.peers,
+				logical_clock=app.logical_clock,
+			).to_json()
 
-	return HeartbeatResponse(
-		ok=False, message="you-got-kicked-lol", peers=None, logical_clock=0
-	).to_json()
+		return HeartbeatResponse(
+			ok=False, message="you-got-kicked-lol", peers=None, logical_clock=0
+		).to_json()
 
 
 @dispatcher.public

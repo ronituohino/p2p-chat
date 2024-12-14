@@ -72,6 +72,8 @@ class Networks(Static):
 
 	def find_group_node(self, grp: None | Group | NDS_Group) -> TreeNode | None:
 		if not grp:
+			logging.warning(f"Group node for group {grp} not found.")
+			self.close_other_groups(None)
 			return None
 
 		tree = self.query_one("Tree")
@@ -84,13 +86,22 @@ class Networks(Static):
 		return active_node
 
 	def refresh_group(self, group: Group | None):
+		if group is None:
+			logging.warning("Group is None. Closing all other groups.")
+			self.close_other_groups(None)
+			return None
+		
+
 		logging.info(f"Refreshing group: {group}")
 		group_node = self.find_group_node(group)
-		if group_node:
-			group_node.remove_children()
-			self.add_peers(group_node, group)
-		else:
-			self.close_other_groups(None)
+		try:
+			if group_node:
+				group_node.remove_children()
+				self.add_peers(group_node, group)
+			else:
+				self.close_other_groups(None)
+		except Exception as e:
+			logging.error(f"Failed to remove children for group node {group_node}: {e}")
 
 	async def join_group(self, group_node, group: NDS_Group):
 		"""Join a group by contacting the leader, then add peers to the tree"""
@@ -103,6 +114,9 @@ class Networks(Static):
 			self.app.chat.chat_log.clear()
 
 	def add_peers(self, group_node, group: Group):
+		if not group.peers:
+			logging.warning(f"Group {group} has no peers.")
+
 		for peer_node in list(group.peers.values()):
 			if group.leader_id == peer_node.node_id:
 				group_node.add_leaf(f"{peer_node.name} (★)")
