@@ -14,6 +14,7 @@ def start_heartbeat(app):
 	if app.heartbeat:
 		# Kill existing heartbeat
 		logging.info(f"Killing heartbeat {app.heartbeat_counter}")
+		app.heartbeat_kill_flags.remove(app.hearbeat_counter)
 		app.heartbeat_kill_flags.add(app.heartbeat_counter)
 
 	logging.info("Starting heartbeat sending.")
@@ -58,32 +59,34 @@ def send_heartbeat_to_leader(app):
 		app.leader_election(app, active.group_id)
 		return None
 
-	try:
-		leader_ip = leader.ip
-		client = app.create_rpc_client(leader_ip, app.node_port)
-		logging.info(f"HB: Sending heartbeat to leader from Peer ID {active.self_id}.")
-		response: HeartbeatResponse = HeartbeatResponse.from_json(
-			client.receive_heartbeat(active.self_id, active.group_id)
-		)
-		if response.ok:
-			logging.info("HB: Refreshing peers.")
+	for _ in range(3):
+		try:
+			leader_ip = leader.ip
+			client = app.create_rpc_client(leader_ip, app.node_port)
+			logging.info(
+				f"HB: Sending heartbeat to leader from Peer ID {active.self_id}."
+			)
+			response: HeartbeatResponse = HeartbeatResponse.from_json(
+				client.receive_heartbeat(active.self_id, active.group_id)
+			)
+			if response.ok:
+				logging.info("HB: Refreshing peers.")
 
-			
-			if response.peers != app.active_group.peers:
-				for peer_id, peer_data in response.peers.items():
-					app.active_group.peers[peer_id] = peer_data
-				app.networking.refresh_group(app.active_group)
+				if set(response.peers.keys()) != set(app.active_group.peers.keys()):
+					for peer_id, peer_data in response.peers.items():
+						app.active_group.peers[peer_id] = peer_data
+					app.networking.refresh_group(app.active_group)
 
-		elif response.message == "changed-group":
-			logging.warning("HB: Leader changed group.")
+			elif response.message == "changed-group":
+				logging.warning("HB: Leader changed group.")
+				app.leader_election(app, active.group_id)
+			else:
+				logging.warning("HB: Leader said not ok, we got kicked!")
+				app.active_group = None
+				app.networking.refresh_group(None)
+		except Exception as e:
+			logging.error(f"EXC: HB: Error sending hearbeat to leader: {e}")
 			app.leader_election(app, active.group_id)
-		else:
-			logging.warning("HB: Leader said not ok, we got kicked!")
-			app.active_group = None
-			app.networking.refresh_group(None)
-	except Exception as e:
-		logging.error(f"EXC: HB: Error sending hearbeat to leader: {e}")
-		app.leader_election(app, active.group_id)
 
 
 def send_heartbeat_to_nds(app):
@@ -92,6 +95,7 @@ def send_heartbeat_to_nds(app):
 	remote_server = app.nds_servers[active.nds_ip]
 	if not remote_server:
 		logging.error("HB: NDS server not found.")
+		return False
 
 	try:
 		logging.info("HB: Sending heartbeat to NDS.")

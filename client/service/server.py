@@ -269,6 +269,7 @@ def send_message(msg) -> bool:
 	if not app.active_group:
 		return False
 
+	group = app.active_group
 	leader_ip = app.active_group.peers[app.active_group.leader_id].ip
 	msg_id = str(uuid.uuid4())
 
@@ -276,19 +277,19 @@ def send_message(msg) -> bool:
 		app,
 		msg,
 		msg_id,
-		app.active_group.group_id,
-		app.active_group.self_id,
-		app.logical_clock,
+		group.group_id,
+		group.self_id,
+		group.logical_clock,
 	)
 
 	logging.info(f"Networking message to leader {leader_ip}")
-	if app.active_group.self_id == app.active_group.leader_id:
+	if group.self_id == group.leader_id:
 		# We are the leader, broadcast to others
 		logging.info("We are leader, broadcast")
 
 		app.logical_clock += 1
 		return message_broadcast(
-			app, msg, msg_id, app.active_group.group_id, app.active_group.self_id
+			app, msg, msg_id, group.group_id, group.self_id
 		)
 	elif leader_ip:
 		# We are not the leader, send to leader who broadcasts to others
@@ -346,11 +347,13 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 	app.logical_clock = current_logical_clock
 
 	logging.info("Storing the message...")
-	try: 
+	try:
 		store_message(app, msg, msg_id, group_id, source_id, current_logical_clock)
 	except Exception as e:
 		logging.error(f"Error storing the message: {e}")
-		return ReceiveMessageResponse(ok=False, message="store-message-failed").to_json()
+		return ReceiveMessageResponse(
+			ok=False, message="store-message-failed"
+		).to_json()
 
 	if group.self_id == group.leader_id:
 		logging.info("Broadcasting the message forward.")

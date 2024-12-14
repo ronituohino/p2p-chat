@@ -17,19 +17,19 @@ def message_broadcast(app, msg, msg_id, group_id, source_id) -> bool:
 	"""
 	group = app.active_group
 	peers = list(group.peers.values())
-	other_peers = []
+	target_peers = []
 
 	for p in peers:
 		if p.node_id != source_id and p.node_id != group.self_id:
-			other_peers.append(p)
+			target_peers.append(p)
 
-	if len(other_peers) < 1:
+	if not target_peers:
 		logging.info(f"No other peers found for group {group_id}.")
 		return False
 
 	app.logical_clock = app.logical_clock + 1
 	logging.info(f"Broadcasting message to peers: {peers}")
-	for peer in other_peers:
+	for peer in target_peers:
 		send_message_to_peer(
 			app, peer.ip, msg, msg_id, group_id, source_id, app.logical_clock
 		)

@@ -25,6 +25,7 @@ def overseer_thread(app, ov_id: int):
 		while True:
 			logging.info(f"OV: Overseeing at {ov_id}.")
 			if ov_id in app.overseer_kill_flags:
+				logging.info(f"OV: Overseer {ov_id} stopped intentionally.")
 				raise InterruptedError
 
 			if (
@@ -37,7 +38,7 @@ def overseer_thread(app, ov_id: int):
 			with app.overseer_lock:
 				for node_id in app.last_node_response.keys():
 					new_val = app.last_node_response[node_id] + 1
-					if new_val > 10:
+					if new_val > app.overseer_cycles_timeout:
 						# If have not received heartbeat from group leader in 10 cycles, delete Group
 						nodes_to_delete.append(node_id)
 					else:
@@ -51,6 +52,6 @@ def overseer_thread(app, ov_id: int):
 				app.networking.refresh_group(app.active_group)
 			time.sleep(app.overseer_interval)
 	except Exception as e:
-		logging.error(f"EXC: OV: Overseer failed {e}")
+		logging.error(f"EXC: Critical error, Overseer failed {e}")
 	finally:
 		logging.info(f"OV: Overseer {ov_id} killed.")
