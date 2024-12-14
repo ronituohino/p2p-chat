@@ -52,7 +52,7 @@ class Networking:
 
 	## INBOUND
 
-	async def refresh_chat(self, messages):
+	def refresh_chat(self, messages):
 		"""Fetch messages and refresh the chat display"""
 		logging.info(f"Refreshing chat with messages: {messages}")
 		self.ui.chat.clear()
