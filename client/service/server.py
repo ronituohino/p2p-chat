@@ -279,7 +279,7 @@ def send_message(msg) -> bool:
 		msg_id,
 		group.group_id,
 		group.self_id,
-		group.logical_clock,
+		app.logical_clock,
 	)
 
 	logging.info(f"Networking message to leader {leader_ip}")
