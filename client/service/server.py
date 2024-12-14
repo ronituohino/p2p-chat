@@ -60,6 +60,7 @@ overseer_cycles_timeout = 6
 dispatcher = RPCDispatcher()
 self_name = None
 networking = None
+logical_clock = 0
 
 # Global variables
 nds_servers: dict[str, RPCClient] = {}  # key is nds_ip
@@ -316,7 +317,7 @@ def send_message(msg) -> bool:
 	Returns:
 		bool: If message was sent successfully.
 	"""
-
+	global logical_clock
 	active = get_active_group()
 	if not active:
 		return False
@@ -325,11 +326,7 @@ def send_message(msg) -> bool:
 	msg_id = str(uuid.uuid4())
 
 	store_message(
-		msg,
-		msg_id,
-		active_group.group_id,
-		active_group.self_id,
-		active_group.logical_clock,
+		msg, msg_id, active_group.group_id, active_group.self_id, logical_clock
 	)
 
 	logging.info(f"Networking message to leader {leader_ip}")
@@ -337,7 +334,7 @@ def send_message(msg) -> bool:
 		# We are the leader, broadcast to others
 		logging.info("We are leader, broadcast")
 
-		active_group.logical_clock += 1
+		logical_clock += 1
 		return message_broadcast(msg, msg_id, active.group_id, active.self_id)
 	elif leader_ip:
 		# We are not the leader, send to leader who broadcasts to others
@@ -348,7 +345,7 @@ def send_message(msg) -> bool:
 			msg_id=msg_id,
 			group_id=active.group_id,
 			source_id=active.self_id,
-			logical_clock=active.logical_clock,
+			logical_clock=logical_clock,
 		)
 	else:
 		logging.error(
@@ -405,6 +402,7 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 		response: success / fail
 	"""
 	group = get_active_group()
+	global logical_clock
 
 	if not group or group.group_id != group_id:
 		logging.warning("Couldn't receive a message, no longer in group.")
@@ -413,15 +411,12 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 		logging.warning("Couldn't receive a message, duplicate.")
 		return ReceiveMessageResponse(ok=True, message="duplicate").to_json()
 
-	if (
-		leader_logical_clock > group.logical_clock + 1
-		and group.leader_id != group.self_id
-	):
+	if leader_logical_clock > logical_clock + 1 and group.leader_id != group.self_id:
 		logging.warning("Detected missing messages. Initiating synchronization.")
 		synchronize_with_leader()
 
-	current_logical_clock = max(group.logical_clock, leader_logical_clock) + 1
-	group.logical_clock = current_logical_clock
+	current_logical_clock = max(logical_clock, leader_logical_clock) + 1
+	logical_clock = current_logical_clock
 
 	logging.info("Storing the message...")
 	store_message(msg, msg_id, group_id, source_id, current_logical_clock)
@@ -447,6 +442,8 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 	group = get_active_group()
 	peers = list(group.peers.values())
 	other_peers = []
+	global logical_clock
+
 	for p in peers:
 		if p.node_id != source_id and p.node_id != group.self_id:
 			other_peers.append(p)
@@ -455,7 +452,7 @@ def message_broadcast(msg, msg_id, group_id, source_id) -> bool:
 		logging.info(f"No other peers found for group {group_id}.")
 		return False
 
-	logical_clock = group.logical_clock + 1
+	logical_clock = logical_clock + 1
 	logging.info(f"Broadcasting message to peers: {peers}")
 	for peer in other_peers:
 		send_message_to_peer(peer.ip, msg, msg_id, group_id, source_id, logical_clock)
@@ -615,6 +612,7 @@ def send_heartbeat_to_nds():
 @dispatcher.public
 def receive_heartbeat(peer_id, group_id):
 	active = get_active_group()
+	global logical_clock
 	if active.group_id != group_id:
 		return HeartbeatResponse(
 			ok=False, message="changed-group", peers=None, logical_clock=0
@@ -623,10 +621,7 @@ def receive_heartbeat(peer_id, group_id):
 	if peer_id in active.peers:
 		last_node_response[peer_id] = 0
 		return HeartbeatResponse(
-			ok=True,
-			message="ok",
-			peers=active.peers,
-			logical_clock=active.logical_clock,
+			ok=True, message="ok", peers=active.peers, logical_clock=logical_clock
 		).to_json()
 
 	return HeartbeatResponse(
@@ -856,9 +851,10 @@ def update_leader(group_id, new_leader_id):
 ## Synchronization
 
 
-def store_message(msg, msg_id, group_id, source_id, logical_clock):
+def store_message(msg, msg_id, group_id, source_id, msg_logical_clock):
 	"""Store a message locally."""
 	global message_store
+	global logical_clock
 
 	group = get_active_group()
 
@@ -876,8 +872,8 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 			logging.info(f"Duplicate message {msg_id} ignored.")
 			return
 
-		if logical_clock > group.logical_clock:
-			group.logical_clock = logical_clock
+		if msg_logical_clock > logical_clock:
+			logical_clock = msg_logical_clock
 
 		peers = group.peers
 		peer = peers[source_id]
@@ -939,6 +935,7 @@ def synchronize_with_leader():
 	group = get_active_group()
 	leader_id = group.leader_id
 	leader_ip = group.peers.get(leader_id, {}).ip
+	global logical_clock
 
 	if not leader_ip:
 		logging.warning("Leader IP not found. Synchronization aborted.")
@@ -949,9 +946,7 @@ def synchronize_with_leader():
 		remote_server = rpc_client.get_proxy()
 		response: CallForSynchronizationResponse = (
 			CallForSynchronizationResponse.from_json(
-				remote_server.call_for_synchronization(
-					group.group_id, group.logical_clock
-				)
+				remote_server.call_for_synchronization(group.group_id, logical_clock)
 			)
 		)
 		if response.ok:
@@ -973,7 +968,7 @@ def synchronize_with_leader():
 
 def store_missing_messages(group_id, missing_messages):
 	"""Store missing messages and update logical clock for the group"""
-	group = get_active_group()
+	global logical_clock
 	new_messages = []
 	logging.info("Storing missing messages.")
 	for msg_data in missing_messages:
@@ -995,8 +990,8 @@ def store_missing_messages(group_id, missing_messages):
 		max_logical_clock = max(
 			msg_data["logical_clock"] for msg_data in missing_messages
 		)
-		group.logical_clock = max(group["logical_clock"], max_logical_clock)
-		logging.info(f"Updated logical clock to {group.logical_clock}")
+		logical_clock = max(logical_clock, max_logical_clock)
+		logging.info(f"Updated logical clock to {logical_clock}")
 	else:
 		logging.info("No new messages were added.")
 
@@ -1006,7 +1001,9 @@ def call_for_synchronization(group_id, peer_logical_clock):
 	logging.info("Calling for synchronization.")
 	group = get_active_group()
 	if group_id != group.group_id:
-		return CallForSynchronizationResponse(ok=False, message="This is the wrong group.", data={}).to_json()
+		return CallForSynchronizationResponse(
+			ok=False, message="This is the wrong group.", data={}
+		).to_json()
 
 	all_messages = message_store.get(group_id, [])
 	missing_messages = [
@@ -1014,13 +1011,17 @@ def call_for_synchronization(group_id, peer_logical_clock):
 	]
 
 	return CallForSynchronizationResponse(
-		ok=True, message="Missing messages sent.", data={"missing_messages": missing_messages}
+		ok=True,
+		message="Missing messages sent.",
+		data={"missing_messages": missing_messages},
 	).to_json()
 
 
 @dispatcher.public
 def update_messages(group_id, messages):
 	group = get_active_group()
+	global logical_clock
+
 	if group_id == group.group_id:
 		for msg_data in messages:
 			if msg_data["msg_id"] not in received_messages:
@@ -1033,7 +1034,7 @@ def update_messages(group_id, messages):
 				)
 		if messages:
 			max_logical_clock = max(msg["logical_clock"] for msg in messages)
-			group.logical_clock = max(group.get("logical_clock", 0), max_logical_clock)
+			logical_clock = max(logical_clock, max_logical_clock)
 		return UpdateMessagesResponse(ok=True).to_json()
 	return UpdateMessagesResponse(ok=False).to_json()
 
@@ -1120,12 +1121,11 @@ def send_missing_messages(
 
 def receive_missing_messages(remote_server, group, peer_id):
 	"""Send messages missing from the peer based on it logical clock"""
+	global logical_clock
 	try:
 		response: CallForSynchronizationResponse = (
 			CallForSynchronizationResponse.from_json(
-				remote_server.call_for_synchronization(
-					group.group_id, group.logical_clock
-				)
+				remote_server.call_for_synchronization(group.group_id, logical_clock)
 			)
 		)
 		if not response.ok:
@@ -1150,7 +1150,7 @@ def receive_missing_messages(remote_server, group, peer_id):
 def report_logical_clock(group_id):
 	group = get_active_group()
 	if group_id == group.group_id:
-		logical_clock = group.get("logical_clock", 0)
+		global logical_clock
 		return ReportLogicalClockResponse(
 			ok=True,
 			message="Logical clock reported succesfully.",
