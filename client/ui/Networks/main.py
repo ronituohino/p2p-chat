@@ -1,6 +1,4 @@
-from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.widgets import Static, Tree, Input
 from textual.widgets.tree import TreeNode
 from structs.client import Group
 from structs.nds import NDS_Group
@@ -90,18 +88,23 @@ class Networks(Static):
 			logging.warning("Group is None. Closing all other groups.")
 			self.close_other_groups(None)
 			return None
-		
 
 		logging.info(f"Refreshing group: {group}")
 		group_node = self.find_group_node(group)
-		try:
-			if group_node:
+
+		if group_node:
+			try:
+				logging.info(f"Removing children for group node {group_node}")
 				group_node.remove_children()
+
 				self.add_peers(group_node, group)
-			else:
-				self.close_other_groups(None)
-		except Exception as e:
-			logging.error(f"Failed to remove children for group node {group_node}: {e}")
+			except Exception as e:
+				logging.error(
+					f"Failed to remove children for group node {group_node}: {e}"
+				)
+		else:
+			logging.info("Closing other groups..")
+			self.close_other_groups(None)
 
 	async def join_group(self, group_node, group: NDS_Group):
 		"""Join a group by contacting the leader, then add peers to the tree"""
@@ -116,12 +119,21 @@ class Networks(Static):
 	def add_peers(self, group_node, group: Group):
 		if not group.peers:
 			logging.warning(f"Group {group} has no peers.")
+			return None
 
-		for peer_node in list(group.peers.values()):
-			if group.leader_id == peer_node.node_id:
-				group_node.add_leaf(f"{peer_node.name} (★)")
-			else:
-				group_node.add_leaf(peer_node.name)
+		if not group.peers:
+			logging.warning(f"Group {group.group_id} has no peers.")
+			return None
+
+		logging.info(f"Processing peers: {group.peers}")
+		for peer_node in group.peers.values():
+			try:
+				if group.leader_id == peer_node.node_id:
+					group_node.add_leaf(f"{peer_node.name} (★)")
+				else:
+					group_node.add_leaf(peer_node.name)
+			except Exception as e:
+				logging.error(f"Failed to add leaf to peer {peer_node.name}: {e}")
 
 	async def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
 		"""Called when any node is expanded in the tree"""
