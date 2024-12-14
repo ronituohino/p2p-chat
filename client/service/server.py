@@ -337,7 +337,7 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 		and group.leader_id != group.self_id
 	):
 		logging.warning("Detected missing messages. Initiating synchronization.")
-		synchronize_with_leader()
+		synchronize_with_leader(app)
 
 	current_logical_clock = max(app.logical_clock, leader_logical_clock) + 1
 	app.logical_clock = current_logical_clock
