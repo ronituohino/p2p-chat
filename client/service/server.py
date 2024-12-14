@@ -110,7 +110,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 
 	try:
 		response: CreateGroupResponse = CreateGroupResponse.from_json(
-			remote_server.create_group(group_name=group_name).get_proxy()
+			remote_server.create_group(group_name=group_name)
 		)
 
 		if response.ok:
