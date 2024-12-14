@@ -126,7 +126,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 			)
 
 			app.active_group = this_group
-			start_overseer()
+			start_overseer(app)
 
 			logging.info(f"Created group, {group_name}, with ID: {group_id}")
 			return this_group
