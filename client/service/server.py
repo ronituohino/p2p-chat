@@ -1006,7 +1006,7 @@ def call_for_synchronization(group_id, peer_logical_clock):
 	logging.info("Calling for synchronization.")
 	group = get_active_group()
 	if group_id != group.group_id:
-		return CallForSynchronizationResponse(ok=False, data={}).to_json()
+		return CallForSynchronizationResponse(ok=False, message="This is the wrong group.", data={}).to_json()
 
 	all_messages = message_store.get(group_id, [])
 	missing_messages = [
@@ -1014,7 +1014,7 @@ def call_for_synchronization(group_id, peer_logical_clock):
 	]
 
 	return CallForSynchronizationResponse(
-		ok=True, data={"missing_messages": missing_messages}
+		ok=True, message="Missing messages sent.", data={"missing_messages": missing_messages}
 	).to_json()
 
 
