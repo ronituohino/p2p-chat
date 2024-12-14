@@ -386,7 +386,7 @@ def send_message_to_peer(client, msg, msg_id, group_id, source_id, logical_clock
 
 
 @dispatcher.public
-def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock):
+def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock = 0):
 	"""Handle receiving a message from peer.
 	If message is meant for current node, then it will store it, otherwise it will
 	broadcast it forward.
@@ -403,8 +403,10 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock):
 	group = get_active_group()
 
 	if not group or group.group_id != group_id:
+		logging.warning("Couldn't receive a message, no longer in group.")
 		return ReceiveMessageResponse(ok=False, message="no-longer-in-group").to_json()
 	if msg_id in received_messages:
+		logging.warning("Couldn't receive a message, duplicate.")
 		return ReceiveMessageResponse(ok=True, message="duplicate").to_json()
 
 	if (
@@ -417,9 +419,11 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock):
 	current_logical_clock = max(group.logical_clock, leader_logical_clock) + 1
 	group.logical_clock = current_logical_clock
 
-	store_message(msg, msg_id, group_id, source_id, 0)
+	logging.info("Storing the message...")
+	store_message(msg, msg_id, group_id, source_id, current_logical_clock)
 
 	if group.self_id == group.leader_id:
+		logging.info("Broadcasting the message forward.")
 		message_broadcast(msg, msg_id, group_id, source_id)
 	return ReceiveMessageResponse(ok=True, message="ok").to_json()
 
