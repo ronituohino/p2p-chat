@@ -167,7 +167,6 @@ def create_group(group_name, nds_ip) -> Group | None:
 			this_group = Group(
 				group_id=group_id,
 				name=group_name,
-				logical_clock=0,
 				nds_ip=nds_ip,
 				self_id=0,
 				leader_id=0,
