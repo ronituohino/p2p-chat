@@ -14,23 +14,22 @@ def start_heartbeat(app):
 	if app.heartbeat:
 		# Kill existing heartbeat
 		logging.info(f"Killing heartbeat {app.heartbeat_counter}")
-		heartbeat_kill_flags.add(app.heartbeat_counter)
+		app.heartbeat_kill_flags.add(app.heartbeat_counter)
 
 	logging.info("Starting heartbeat sending.")
 	app.heartbeat_counter += 1
 	app.heartbeat = threading.Thread(
-		target=heartbeat_thread, args=(app, app.heartbeat_counter,), daemon=True
+		target=heartbeat_thread, args=(app, app.heartbeat_counter), daemon=True
 	)
 	app.heartbeat.start()
 
 
 def heartbeat_thread(app, hb_id: int):
-	global heartbeat_kill_flags
 	# Wrap in try clause, so that can be closed with .raise_exception()
 	try:
 		while True:
 			logging.info(f"HB: Sending heartbeat at {hb_id}.")
-			if hb_id in heartbeat_kill_flags:
+			if hb_id in app.heartbeat_kill_flags:
 				raise InterruptedError
 
 			group = app.active_group
@@ -44,7 +43,9 @@ def heartbeat_thread(app, hb_id: int):
 				send_heartbeat_to_nds(app)
 
 			# Sleep for a random interval, balances out leader election more
-			interval = random.uniform(app.heartbeat_min_interval, app.heartbeat_max_interval)
+			interval = random.uniform(
+				app.heartbeat_min_interval, app.heartbeat_max_interval
+			)
 			time.sleep(interval)
 	finally:
 		logging.info(f"HB: Killing heartbeat {hb_id}.")
