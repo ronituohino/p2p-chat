@@ -85,7 +85,7 @@ class AppState:
 			JSONRPCProtocol(),
 			HttpPostClientTransport(f"http://{ip}:{port}/", timeout=5),
 		)
-		return rpc_client
+		return rpc_client.get_proxy()
 
 	def get_ip(self):
 		if not self.env:

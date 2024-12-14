@@ -97,7 +97,7 @@ def synchronize_with_leader(app):
 
 	leader_ip = leader.ip
 	try:
-		remote_server = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
+		remote_server = app.create_rpc_client(leader_ip, app.node_port)
 		response: CallForSynchronizationResponse = (
 			CallForSynchronizationResponse.from_json(
 				remote_server.call_for_synchronization(
@@ -174,7 +174,7 @@ def synchronize_with_peer(app, group, peer, all_messages):
 		return None
 
 	try:
-		remote_server = app.create_rpc_client(peer.ip, app.node_port).get_proxy()
+		remote_server = app.create_rpc_client(peer.ip, app.node_port)
 		peer_logical_clock = get_peer_logical_clock(remote_server, group, peer_id)
 		if not peer_logical_clock:
 			logging.warning(f"Skipping peer {peer.peer_id} due to unreachable clock.")
