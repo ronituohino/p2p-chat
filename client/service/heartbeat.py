@@ -61,7 +61,7 @@ def send_heartbeat_to_leader(app):
 
 	try:
 		leader_ip = leader.ip
-		client = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
+		client = app.create_rpc_client(leader_ip, app.node_port)
 		logging.info(f"HB: Sending heartbeat to leader from {active.self_id}.")
 		response: HeartbeatResponse = HeartbeatResponse.from_json(
 			client.receive_heartbeat(active.self_id, active.group_id)
@@ -86,7 +86,7 @@ def send_heartbeat_to_leader(app):
 def send_heartbeat_to_nds(app):
 	active = app.active_group
 	# This node is leader, send heartbeat to NDS
-	remote_server = app.nds_servers[active.nds_ip].get_proxy()
+	remote_server = app.nds_servers[active.nds_ip]
 	if not remote_server:
 		logging.error("HB: NDS server not found.")
 

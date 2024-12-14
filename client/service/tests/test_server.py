@@ -1,7 +1,6 @@
 from multiprocessing import Process
 from service.server import serve, create_group, join_group, send_message, message_broadcast, store_message, get_group_info, get_messages, leave_group
 import pytest
-from sqlitedict import SqliteDict
 from unittest.mock import MagicMock, patch
 
 

@@ -48,7 +48,7 @@ def send_message_to_peer(
 		group_id (str): UID of the group.
 	"""
 	try:
-		remote_server = app.create_rpc_client(client_ip, app.node_port).get_proxy()
+		remote_server = app.create_rpc_client(client_ip, app.node_port)
 		response: ReceiveMessageResponse = ReceiveMessageResponse.from_json(
 			remote_server.receive_message(
 				msg=msg,

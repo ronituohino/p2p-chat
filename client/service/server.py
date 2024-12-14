@@ -67,7 +67,7 @@ def add_node_discovery_source(nds_ip):
 	"""
 	Adds a discovery server, and returns all possible groups to join from NDS or None, if the connection fails.
 	"""
-	remote_server = app.create_rpc_client(ip=nds_ip, port=app.nds_port).get_proxy()
+	remote_server = app.create_rpc_client(ip=nds_ip, port=app.nds_port)
 	app.nds_servers[nds_ip] = remote_server
 
 	try:
@@ -99,7 +99,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 	Returns:
 		Group obj: newly created group
 	"""
-	remote_server = app.nds_servers.get(nds_ip, False).get_proxy()
+	remote_server = app.nds_servers.get(nds_ip, False)
 	if not remote_server:
 		logging.error(f"NDS server with IP {nds_ip} does not exist.")
 		return None
@@ -166,7 +166,7 @@ def request_to_join_group(leader_ip, group_id) -> Group | None:
 	Returns:
 		list: A set of nodes if success.
 	"""
-	remote_server = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
+	remote_server = app.create_rpc_client(leader_ip, app.node_port)
 	# This is request to leader
 	try:
 		app.logical_clock = 0
