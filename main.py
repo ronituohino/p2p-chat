@@ -60,7 +60,7 @@ class Networking:
 			logging.warning("No messages to refresh.")
 			return 
 		
-		messages = sorted(messages, key=lambda msg: msg["clock"])
+		messages = sorted(messages, key=lambda msg: msg["logical_clock"])
 		for msg_data in messages:
 			msg = f"{msg_data['source_name']}: {msg_data['msg']}"
 			self.ui.chat.write(msg)
