@@ -52,17 +52,21 @@ class Networking:
 
 	## INBOUND
 
-	def refresh_chat(self, messages):
+	def refresh_chat(self, messages, is_me):
 		"""Fetch messages and refresh the chat display"""
 		logging.info(f"Refreshing chat with messages: {messages}")
 		self.ui.chat.clear_chat()
 		if not messages:
 			logging.warning("No messages to refresh.")
-			return 
-		
+			return
+
 		messages = sorted(messages, key=lambda msg: msg["logical_clock"])
 		for msg_data in messages:
-			msg = f"{msg_data['source_name']}: {msg_data['msg']}"
+			if is_me:
+				name = is_me
+			else:
+				name = msg_data["source_name"]
+			msg = f"{name}: {msg_data['msg']}"
 			self.ui.chat.write(msg)
 
 	# Called when a message arrived to the active group
