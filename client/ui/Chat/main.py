@@ -38,6 +38,10 @@ class Chat(Static):
 	def write(self, msg: str):
 		"""Write a message to chat log"""
 		self.chat_log.write(msg, width=66)
+	
+	def clear_chat(self):
+		"""Clear the chat log"""
+		self.chat_log.clear()
 
 	def on_mount(self):
 		"""Init chat log and write the banner"""
