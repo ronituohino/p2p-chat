@@ -882,10 +882,6 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 		peers = group.peers
 		peer = peers[source_id]
 
-		is_me = None
-		if source_id == group.self_id:
-			is_me = "@me"
-
 		messages.append(
 			{
 				"msg_id": msg_id,
@@ -907,7 +903,7 @@ def store_message(msg, msg_id, group_id, source_id, logical_clock):
 	logging.info("Message has been stored, refreshing chat")
 	if hasattr(networking, "refresh_chat"):
 		try:
-			networking.refresh_chat(messages, is_me)
+			networking.refresh_chat(messages, group.self_id)
 			logging.info("Chat has been refreshed")
 		except Exception as e:
 			logging.error(f"Error refreshing chat_ {e}")
