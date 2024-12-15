@@ -46,22 +46,22 @@ class AppState:
 		instance.create_group = None
 		instance.request_to_join_group = None
 
-		instance.heartbeat_min_interval = 4
-		instance.heartbeat_max_interval = 6
+		instance.heartbeat_min_interval = 3
+		instance.heartbeat_max_interval = 5
 
 		instance.heartbeat = None
 		instance.heartbeat_counter = 0  # set to the id of the heartbeat
 		instance.heartbeat_kill_flags = set()
 
 		instance.crawler = None
-		instance.crawler_refresh_rate = 5
+		instance.crawler_refresh_rate = 3
 
 		instance.overseer = None
 		instance.overseer_counter = 0  # set to the id of the heartbeat
 		instance.overseer_kill_flags = set()
 		instance.overseer_lock = threading.Lock()
-		instance.overseer_cycles_timeout = 12
-		instance.overseer_interval = 3
+		instance.overseer_cycles_timeout = 10
+		instance.overseer_interval = 1
 
 	@property
 	def active_group(self):
