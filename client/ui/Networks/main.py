@@ -104,7 +104,7 @@ class Networks(Static):
 			self.app.chat.chat_log.clear()
 
 	def add_peers(self, group_node, group: Group):
-		existing_peers = {child.label for child in group_node.children}
+		existing_peers = {child.label.plain for child in group_node.children}
 		updated_peers = {
 			f"{peer.name} (★)" if group.leader_id == peer.node_id else peer.name
 			for peer in group.peers.values()
