@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Dict
 from dataclasses_json import dataclass_json
 
 from .generic import Response
@@ -69,8 +70,8 @@ class Group:
 		The id that this Node has within this Group.
 		Constant through the lifetime of a group.
 		Used in leader election to prioritise Nodes that have been in the Group the longest.
-	vector_clock : int
-		The current vector clock value used to keep track of message order.
+	logical_clock : int
+		The current logical clock value used to keep track of message order.
 	peers : dict
 		The Nodes within the Group, key is the id of the Node. This include self.
 	nds_ip : str
@@ -81,7 +82,6 @@ class Group:
 	name: str
 	leader_id: int
 	self_id: int
-	vector_clock: int
 	peers: dict[int, Node]
 	nds_ip: str
 
@@ -102,15 +102,15 @@ class Message:
 		The group in which the message was sent in.
 	source_id : str
 		The id of the Node that sent the message.
-	vector_clock : int
-		The vector clock value for this message, used in ordering them.
+	logical_clock : int
+		The logical clock value for this message, used in ordering them.
 	"""
 
 	message_id: str
 	message: str
 	group_id: str
 	source_id: str
-	vector_clock: int
+	logical_clock: int
 
 
 ### RESPONSES
@@ -141,13 +141,34 @@ class HeartbeatResponse(Response):
 		The response to the heartbeat to indicate different statuses.
 	peers : dict[int, Node]
 		The peers that are in the group still.
-	vector_clock : int
-		The current vector_clock value.
+	logical_clock : int
+		The current logical_clock value.
 	"""
 
 	message: str  # a status message
 	peers: dict[int, Node]  # in case new people joined the group, inform others
-	vector_clock: int
+	logical_clock: int
+
+
+@dataclass_json
+@dataclass
+class ReportLogicalClockResponse(Response):
+	data: dict
+	message: str
+
+
+@dataclass_json
+@dataclass
+class CallForSynchronizationResponse(Response):
+	data: dict
+	message: str
+
+
+@dataclass_json
+@dataclass
+class UpdateMessagesResponse(Response):
+	data: dict
+	message: str
 
 
 @dataclass_json

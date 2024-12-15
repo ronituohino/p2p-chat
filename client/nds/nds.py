@@ -1,4 +1,3 @@
-import socket
 import uuid
 import gevent
 import logging
@@ -13,8 +12,8 @@ from tinyrpc import RPCClient
 import threading
 import time
 
-from structs.generic import Response
-from structs.nds import (
+from client.structs.generic import Response
+from client.structs.nds import (
 	NDS_Group,
 	FetchGroupResponse,
 	CreateGroupResponse,
@@ -39,11 +38,11 @@ def get_ip():
 
 
 # Constants
-leader_port = 50001
-nds_port = 50002
+leader_port = 5001
+nds_port = 5002
 
 overseer_interval = 1
-overseer_cycles_timeout = 6
+overseer_cycles_timeout = 60
 
 # Runtime constants
 dispatcher = RPCDispatcher()
@@ -75,13 +74,11 @@ def create_rpc_client(ip, port):
 	This itself does not attempt to send anything, so it cannot fail.
 	"""
 	rpc_client = RPCClient(
-		JSONRPCProtocol(), HttpPostClientTransport(f"http://{ip}:{port}/", timeout=5)
+		JSONRPCProtocol(), HttpPostClientTransport(f"http://{ip}:{port}/", timeout=10)
 	)
 	return rpc_client
 
-
 ### GROUP MANAGEMENT
-
 
 @dispatcher.public
 def get_groups():
@@ -137,7 +134,7 @@ def overseer_thread():
 			for group_id in last_leader_response.keys():
 				new_val = last_leader_response[group_id] + 1
 				if new_val > overseer_cycles_timeout:
-					# If have not received heartbeat from group leader in 10 cycles, delete Group
+					# If have not received heartbeat from group leader in 60 cycles, delete Group
 					groups_to_delete.append(group_id)
 				else:
 					last_leader_response[group_id] = new_val

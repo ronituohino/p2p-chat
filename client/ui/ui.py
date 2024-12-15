@@ -48,6 +48,7 @@ class ChatApp(App):
 			thread.start()
 
 	def compose(self) -> ComposeResult:
+		"""compose the main layout"""
 		with Horizontal():
 			yield Networks()
 			yield Chat()
@@ -67,3 +68,4 @@ class ChatApp(App):
 		elif action == "create_group" and not self.networks.network_labels:
 			return None
 		return True
+

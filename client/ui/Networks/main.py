@@ -1,9 +1,9 @@
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.widgets import Static, Tree
+from textual.widgets import Static, Tree, Input
 from textual.widgets.tree import TreeNode
-from structs.client import Group
-from structs.nds import NDS_Group
+from client.structs.client import Group
+from client.structs.nds import NDS_Group
 
 import logging
 
@@ -15,6 +15,11 @@ class Networks(Static):
 	Networks {
 		border: $border;
 		background: crimson;
+	}
+
+	.discovery-input {
+		dock: bottom;
+		background: lightgray;
 	}
 	"""
 
@@ -81,6 +86,7 @@ class Networks(Static):
 	def refresh_group(self, group: Group | None):
 		logging.info(f"Refreshing group: {group}")
 		group_node = self.find_group_node(group)
+
 		if group_node:
 			group_node.remove_children()
 			self.add_peers(group_node, group)
@@ -98,11 +104,24 @@ class Networks(Static):
 			self.app.chat.chat_log.clear()
 
 	def add_peers(self, group_node, group: Group):
-		for peer_node in list(group.peers.values()):
-			if group.leader_id == peer_node.node_id:
-				group_node.add_leaf(f"{peer_node.name} (★)")
-			else:
-				group_node.add_leaf(peer_node.name)
+		existing_peers = {child.label.plain for child in group_node.children}
+		updated_peers = {
+			f"{peer.name} (★)" if group.leader_id == peer.node_id else peer.name
+			for peer in group.peers.values()
+		}
+
+		peers_to_remove = existing_peers - updated_peers
+		for child in list(group_node.children):
+			if child.label.plain in peers_to_remove:
+				group_node.remove_child(child)
+
+		peers_to_add = updated_peers - existing_peers
+		for peer in list(group.peers.values()):
+			peer_label = (
+				f"{peer.name} (★)" if group.leader_id == peer.node_id else peer.name
+			)
+			if peer_label in peers_to_add:
+				group_node.add_leaf(peer_label)
 
 	async def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
 		"""Called when any node is expanded in the tree"""
@@ -139,7 +158,7 @@ class Networks(Static):
 			name=group.name,
 		)
 
-	def compose(self) -> ComposeResult:
+	def compose(self):
 		with VerticalScroll():
 			tree = Tree("root")
 			tree.show_root = False

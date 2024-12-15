@@ -16,13 +16,13 @@ addresses of the leaders.
 
 ## TODO
 
-- Leader election system refactor and integration
-- Message reordering with vector clocks, heartbeat system carries this info
-- Ping NDS function (refresh button / thread with timer) so that new group info is fetched 
+- Leader election system refactor and integration (DONE)
+- Message reordering with logical clocks, heartbeat system carries this info (DONE)
+- Ping NDS function (refresh button / thread with timer) so that new group info is fetched  (DONE)
 
 Optional:
 
-- Fix tests
+- Fix tests (NO TIME TO DO THIS)
 - 2-way handshake when adding NDS to assure that client can accept incoming requests as well
   - Right now you can start the group chat and do whatever, but you will get no info from others if for example firewall blocks the RPC calls
 

@@ -10,7 +10,7 @@ from client.service import (
 import sys
 import logging
 
-from structs.client import Group
+from client.structs import Group
 ### CLIENT ENTRYPOINT
 
 
@@ -51,6 +51,23 @@ class Networking:
 		return send_message(msg)
 
 	## INBOUND
+
+	def refresh_chat(self, messages, self_id):
+		"""Fetch messages and refresh the chat display"""
+		logging.info(f"Refreshing chat with messages: {len(messages)}")
+		self.ui.chat.clear_chat()
+		if not messages:
+			logging.warning("No messages to refresh.")
+			return
+
+		messages = sorted(messages, key=lambda msg: msg["logical_clock"])
+		for msg_data in messages:
+			if msg_data["source_id"] == self_id:
+				name = "@me"
+			else:
+				name = msg_data["source_name"]
+			msg = f"{name}: {msg_data['msg']}"
+			self.ui.chat.write(msg)
 
 	# Called when a message arrived to the active group
 	def receive_message(self, source_name, msg) -> None:

@@ -1,8 +1,5 @@
 from textual.app import ComposeResult
 from textual.widgets import Input, Static, RichLog
-from structs.client import Group
-
-import logging
 
 banner = """
   ██████╗ ██████╗ ██████╗        ██████╗██╗  ██╗ █████╗ ████████╗
@@ -39,19 +36,24 @@ class Chat(Static):
 		self.chat_log = None
 
 	def write(self, msg: str):
+		"""Write a message to chat log"""
 		self.chat_log.write(msg, width=66)
+	
+	def clear_chat(self):
+		"""Clear the chat log"""
+		self.chat_log.clear()
 
 	def on_mount(self):
+		"""Init chat log and write the banner"""
 		self.chat_log = self.query_one(RichLog)
 		self.write(banner)
 
 	async def on_input_submitted(self, event: Input.Submitted):
+		message = event.value.strip()
 		event.input.clear()
-		message = event.value
-		sent = await self.app.net.send_message(message)
-		if sent:
-			self.write(f"@me: {message}")
+		if message:
+			await self.app.net.send_message(message)
 
 	def compose(self) -> ComposeResult:
 		yield RichLog(wrap=True, auto_scroll=True)
-		yield Input(classes="message-input")
+		yield Input(placeholder="Type your message here...", classes="message-input")
