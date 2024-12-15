@@ -28,9 +28,7 @@ def maintain_received_messages(app):
 
 def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 	"""Store a message locally."""
-	group = app.active_group
-
-	if not group:
+	if not app.active_group:
 		logging.error("No active group found.")
 		return
 
@@ -46,7 +44,7 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 
 		logical_clock = max(app.logical_clock, msg_logical_clock)
 
-		peers = group.peers
+		peers = app.active_group.peers
 		if source_id not in peers:
 			logging.warning(f"Source ID {source_id} not found in peers.")
 			name = "Unknown (left)"
@@ -76,7 +74,7 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 	logging.info("Message has been stored, refreshing chat")
 	if hasattr(app.networking, "refresh_chat"):
 		try:
-			app.networking.refresh_chat(messages, group.self_id)
+			app.networking.refresh_chat(messages, app.active_group.self_id)
 			logging.info("Chat has been refreshed")
 		except Exception as e:
 			logging.error(f"Error refreshing chat_ {e}")
@@ -89,10 +87,9 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 
 # Used on startup, when node joins it can synchronize its messages with leader.
 def synchronize_with_leader(app):
-	def sync_thread():
-		group = app.active_group
-		leader_id = group.leader_id
-		leader = group.peers.get(leader_id)
+	def sync_thread(app):
+		leader_id = app.active_group.leader_id
+		leader = app.active_group.peers.get(leader_id)
 		if not leader:
 			logging.warning("Leader not found in peers. Synchronization aborted.")
 			return False
@@ -105,7 +102,7 @@ def synchronize_with_leader(app):
 				response: CallForSynchronizationResponse = (
 					CallForSynchronizationResponse.from_json(
 						remote_server.call_for_synchronization(
-							group.group_id, app.logical_clock
+							app.active_group.group_id, app.logical_clock
 						)
 					)
 				)
@@ -115,7 +112,9 @@ def synchronize_with_leader(app):
 						logging.info(
 							f"Received {len(missing_messages)} missing messages from leader."
 						)
-						store_missing_messages(app, group.group_id, missing_messages)
+						store_missing_messages(
+							app, app.active_group.group_id, missing_messages
+						)
 						return True
 					else:
 						logging.info("No missing messages from leader")
@@ -127,7 +126,7 @@ def synchronize_with_leader(app):
 				return False
 			return True
 
-	thread = threading.Thread(target=sync_thread, daemon=True)
+	thread = threading.Thread(target=sync_thread, args=(app,), daemon=True)
 	thread.start()
 
 
