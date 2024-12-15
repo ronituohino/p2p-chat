@@ -67,16 +67,6 @@ class AppState:
 	def active_group(self):
 		return self._active_group
 
-	@active_group.peers.setter
-	def peers(self, peers_dict):
-		if not isinstance(peers_dict, dict):
-			raise ValueError("peers must be a dictionay of peer IDs to NODE objects")
-
-		self._active_group.peers = {
-			peer_id: (peer if isinstance(peer, Node) else Node(**peer))
-			for peer_id, peer in peers_dict.items()
-		}
-
 	@active_group.setter
 	def active_group(self, group):
 		self._active_group = group

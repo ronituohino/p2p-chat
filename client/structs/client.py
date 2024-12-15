@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Dict
 from dataclasses_json import dataclass_json
 
 from .generic import Response
@@ -27,7 +28,7 @@ class NDS_Group:
 
 	group_id: str
 	name: str
-	leader_ip: str 
+	leader_ip: str
 
 
 @dataclass_json
@@ -81,8 +82,21 @@ class Group:
 	name: str
 	leader_id: int
 	self_id: int
-	peers: dict[int, Node]
+	_peers: dict[int, Node]
 	nds_ip: str
+
+	@property
+	def peers(self) -> Dict[int, Node]:
+		"""Property to acces the pers dictionary"""
+		return self._peers
+
+	@peers.setter
+	def peers(self, new_peers: Dict[int, Node]):
+		"""Setter check peers is always dict of int and Node"""
+		self._peers = {
+			peer_id: (peer if isinstance(peer, Node) else Node(**peer))
+			for peer_id, peer in new_peers.items()
+		}
 
 
 @dataclass_json
