@@ -32,6 +32,7 @@ def message_broadcast(app, msg, msg_id, group_id, source_id) -> bool:
 		send_message_to_peer(
 			app, peer.ip, msg, msg_id, group_id, source_id, app.logical_clock
 		)
+		
 	return True
 
 
@@ -57,6 +58,8 @@ def send_message_to_peer(
 				leader_logical_clock=logical_clock,
 			)
 		)
+		if response.message == "no-longer-in-group":
+			return False
 		if response.ok:
 			logging.info("Leader received message successfully.")
 			return True

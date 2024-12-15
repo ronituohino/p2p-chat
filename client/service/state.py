@@ -1,5 +1,5 @@
 import threading
-from client.structs.client import Group
+from client.structs.client import Group, Node
 from tinyrpc import RPCClient
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.http import HttpPostClientTransport
@@ -67,6 +67,16 @@ class AppState:
 	def active_group(self):
 		return self._active_group
 
+	@active_group.peers.setter
+	def peers(self, peers_dict):
+		if not isinstance(peers_dict, dict):
+			raise ValueError("peers must be a dictionay of peer IDs to NODE objects")
+
+		self._active_group.peers = {
+			peer_id: (peer if isinstance(peer, Node) else Node(**peer))
+			for peer_id, peer in peers_dict.items()
+		}
+
 	@active_group.setter
 	def active_group(self, group):
 		self._active_group = group
@@ -74,6 +84,11 @@ class AppState:
 			self.self_id = group.self_id
 			with self.overseer_lock:
 				self.last_node_response = {node_id: 0 for node_id in group.peers.keys()}
+
+			group.peers = {
+				peer_id: (peer if isinstance(peer, Node) else Node(**peer))
+				for peer_id, peer in group.peers.items()
+			}
 
 	def increment_clock(self):
 		self.logical_clock += 1
