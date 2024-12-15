@@ -21,10 +21,40 @@ addresses of the leaders.
 - Ping NDS function (refresh button / thread with timer) so that new group info is fetched  (DONE)
 
 Optional:
-
 - Fix tests (NO TIME TO DO THIS)
 - 2-way handshake when adding NDS to assure that client can accept incoming requests as well
   - Right now you can start the group chat and do whatever, but you will get no info from others if for example firewall blocks the RPC calls
+
+
+## Code Structure and Documentation
+
+This project adopts a modular design to enhance debugging, testing, and scalability. The source code is organized into directories based on functionality, with inline comments at critical points to clarify design principles.
+
+### Key Components
+
+- **`client/service/`**: Core services such as leader election, message broadcasting, heartbeat, and synchronization logic.
+  - **`leader_election.py`**: Implements the Bully Algorithm for leader election.
+  - **`synchronization.py`**: Manages synchronization using logical clocks.
+
+- **`client/nds/`**: Node Discovery Service (NDS) implementation, responsible for group discovery and leader identification.
+
+- **`client/ui/`**: User interface implementation containing logic for creating groups, adding members, and broadcasting messages.
+
+- **`docs/`**: Project documentation files.
+
+- **`tests/`**: Located under the `tests/` directory. Due to refactoring and time constraints, tests are currently non-functional.
+
+---
+
+## Feature Overview
+
+| **Feature**           | **File/Module**                       | **Details**                                                                                          |
+|-----------------------|---------------------------------------|------------------------------------------------------------------------------------------------------|
+| **Leader Election**   | `client/service/leader_election.py`   | Implements the modified Bully Algorithm and its functionality.                                      |
+| **Synchronization**   | `client/service/synchronization.py`   | Handles logical clock-based message ordering and state recovery.                                    |
+| **Fault Tolerance**   | `client/service/heartbeat.py`         | Implements heartbeat monitoring and failure detection.                                              |
+| **Scalability**       | `client/nds/nds.py`                   | Demonstrates NDS scalability and its role in minimizing centralization.                             |
+| **Messaging Protocol**| `client/service/messaging.py`         | Implements JSON-RPC for broadcasting and leader coordination.                                       |
 
 ## Deployment
 
