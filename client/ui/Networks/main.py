@@ -105,6 +105,8 @@ class Networks(Static):
 				peers_to_remove = current_peer_labels - updated_peer_labels
 				peers_to_add = updated_peer_labels - current_peer_labels
 
+				logging.info(f"Following peers to remove: {peers_to_remove}")
+				logging.info(f"Following peers to add: {peers_to_add}")
 				for child in list(group_node.children):
 					if child.label in peers_to_remove:
 						logging.info(f"Removing peer: {child.label}")
@@ -137,17 +139,19 @@ class Networks(Static):
 			logging.warning(f"Group {group} has no peers.")
 			return None
 
-		if not group.peers:
-			logging.warning(f"Group {group.group_id} has no peers.")
-			return None
+		try:
+			group_node.remove_children()
+		except Exception as e:
+			logging.error(f"Failed to clear children of group node {group_node}.")
 
 		logging.info(f"Processing peers: {group.peers}")
 		for peer_node in group.peers.values():
+			logging.info(f"Processing peer {peer_node}")
 			try:
 				if group.leader_id == peer_node.node_id:
 					group_node.add_leaf(f"{peer_node.name} (★)")
 				else:
-					group_node.add_leaf(peer_node.name)
+					group_node.add_leaf(f"{peer_node.name}")
 			except Exception as e:
 				logging.error(f"Failed to add leaf to peer {peer_node.name}: {e}")
 
