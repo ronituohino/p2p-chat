@@ -46,8 +46,8 @@ class AppState:
 		instance.create_group = None
 		instance.request_to_join_group = None
 
-		instance.heartbeat_min_interval = 3
-		instance.heartbeat_max_interval = 5
+		instance.heartbeat_min_interval = 1
+		instance.heartbeat_max_interval = 3
 
 		instance.heartbeat = None
 		instance.heartbeat_counter = 0  # set to the id of the heartbeat
@@ -60,7 +60,7 @@ class AppState:
 		instance.overseer_counter = 0  # set to the id of the heartbeat
 		instance.overseer_kill_flags = set()
 		instance.overseer_lock = threading.Lock()
-		instance.overseer_cycles_timeout = 10
+		instance.overseer_cycles_timeout = 8
 		instance.overseer_interval = 1
 
 	@property

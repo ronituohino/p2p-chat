@@ -60,9 +60,10 @@ def overseer_thread(app, ov_id: int):
 					nodes_to_delete.append(node_id)
 
 			for node_id in nodes_to_delete:
-				del app.last_node_response[node_id]
-				del app.active_group.peers[node_id]
-				logging.info(f"OV: Node {node_id} deleted -- no heartbeat from node.")
+				if node_id != app.active_group.self_id:
+					del app.last_node_response[node_id]
+					del app.active_group.peers[node_id]
+					logging.info(f"OV: Node {node_id} deleted -- no heartbeat from node.")
 
 			app.networking.refresh_group(app.active_group)
 			time.sleep(app.overseer_interval)
