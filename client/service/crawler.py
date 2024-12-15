@@ -26,24 +26,23 @@ def start_crawler(app):
 
 def crawler_thread(app):
 	logging.info("CRWL: Crawler starting.")
-	with app.lock:
-		group = app.active_group
-		nds_servers = app.nds_servers
-		networking = app.networking
-		
-		try:
-			while True:
-				logging.info("CRWL: Crawling.")
-				for nds_ip, nds in nds_servers.items():
-					response: FetchGroupResponse = FetchGroupResponse.from_json(
-						nds.get_groups()
-					)
-					if response.ok:
-						networking.reload_all_groups(nds_ip, group, response.groups)
+	group = app.active_group
+	nds_servers = app.nds_servers
+	networking = app.networking
+	
+	try:
+		while True:
+			logging.info("CRWL: Crawling.")
+			for nds_ip, nds in nds_servers.items():
+				response: FetchGroupResponse = FetchGroupResponse.from_json(
+					nds.get_groups()
+				)
+				if response.ok:
+					networking.reload_all_groups(nds_ip, group, response.groups)
 
-				# Wait for a bit before fetching again
-				time.sleep(app.crawler_refresh_rate)
-		except Exception as e:
-			logging.error(f"EXC: CRWL: Crawler failed {e}")
-		finally:
-			logging.info("CRWL: Crawler killed.")
+			# Wait for a bit before fetching again
+			time.sleep(app.crawler_refresh_rate)
+	except Exception as e:
+		logging.error(f"EXC: CRWL: Crawler failed {e}")
+	finally:
+		logging.info("CRWL: Crawler killed.")
