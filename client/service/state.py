@@ -58,7 +58,7 @@ class AppState:
 		instance.overseer_counter = 0  # set to the id of the heartbeat
 		instance.overseer_kill_flags = set()
 		instance.overseer_lock = threading.Lock()
-		instance.overseer_cycles_timeout = 15
+		instance.overseer_cycles_timeout = 5
 		instance.overseer_interval = 1
 
 	@property
