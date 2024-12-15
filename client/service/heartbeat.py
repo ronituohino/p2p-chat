@@ -14,7 +14,7 @@ def start_heartbeat(app):
 	if app.heartbeat:
 		# Kill existing heartbeat
 		logging.info(f"Killing heartbeat {app.heartbeat_counter}")
-		app.heartbeat_kill_flags.remove(app.hearbeat_counter)
+		app.heartbeat_kill_flags.remove(app.heartbeat_counter)
 		app.heartbeat_kill_flags.add(app.heartbeat_counter)
 
 	logging.info("Starting heartbeat sending.")
@@ -87,7 +87,7 @@ def send_heartbeat_to_leader(app):
 				app.active_group = None
 				app.networking.refresh_group(None)
 		except Exception as e:
-			logging.error(f"EXC: HB: Error sending hearbeat to leader: {e}")
+			logging.error(f"EXC: HB: Error sending heartbeat to leader: {e}")
 			app.leader_election(app, active.group_id)
 
 

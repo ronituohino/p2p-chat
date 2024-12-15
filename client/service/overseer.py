@@ -21,7 +21,7 @@ def start_overseer(app):
 
 
 def overseer_thread(app, ov_id: int):
-	"""Thread to monitor hearbeats from followers, deleting ones not active"""
+	"""Thread to monitor heartbeats from followers, deleting ones not active"""
 	try:
 		previous_state = set(app.active_group.peers.keys())
 		while True:
@@ -34,6 +34,9 @@ def overseer_thread(app, ov_id: int):
 				not app.active_group
 				or app.active_group.self_id != app.active_group.leader_id
 			):
+				logging.warning(
+					"OV: Active group is missing or node is not leader. Stopping overseer."
+				)
 				raise InterruptedError
 
 			with app.overseer_lock:
@@ -45,6 +48,7 @@ def overseer_thread(app, ov_id: int):
 					app.last_node_response[node_id] += 1
 					if app.last_node_response[node_id] > app.overseer_cycles_timeout:
 						# If have not received heartbeat from group leader in 10 cycles, delete Group
+						logging.info(f"Removing a node with node ID: {node_id}")
 						nodes_to_delete.append(node_id)
 
 				for node_id in nodes_to_delete:
