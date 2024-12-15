@@ -9,11 +9,20 @@ from tinyrpc.transports.wsgi import WsgiServerTransport
 from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
 
-from client.service import leader_election
-from client.service.heartbeat import start_heartbeat
-from client.service.messaging import message_broadcast, send_message_to_peer
-from client.service.synchronization import store_message, synchronize_with_leader
-from structs.client import (
+from .leader_election import leader_election
+from .heartbeat import start_heartbeat
+from .messaging import message_broadcast, send_message_to_peer
+from .synchronization import (
+	store_message,
+	synchronize_with_leader,
+	maintain_received_messages,
+)
+
+from .state import AppState
+from .crawler import start_crawler
+from .overseer import start_overseer
+
+from client.structs.client import (
 	Group,
 	Node,
 	JoinGroupResponse,
@@ -23,12 +32,8 @@ from structs.client import (
 	CallForSynchronizationResponse,
 	UpdateMessagesResponse,
 )
-from structs.generic import Response
-from structs.nds import FetchGroupResponse, CreateGroupResponse
-from client.service.state import AppState
-from client.service.crawler import start_crawler
-from client.service.overseer import start_overseer
-from client.service.synchronization import maintain_received_messages
+from client.structs.generic import Response
+from client.structs.nds import FetchGroupResponse, CreateGroupResponse
 # This needs the server to be on one thread, otherwise IPs will get messed up
 
 app = AppState()
@@ -244,7 +249,10 @@ def join_group(peer_name, group_id):
 		app.networking.refresh_group(app.active_group)
 		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 		return JoinGroupResponse(
-			ok=True, message="ok", group=app.active_group, assigned_peer_id=assigned_peer_id
+			ok=True,
+			message="ok",
+			group=app.active_group,
+			assigned_peer_id=assigned_peer_id,
 		).to_json()
 
 	except Exception as e:
@@ -269,14 +277,7 @@ def send_message(msg) -> bool:
 	leader_ip = app.active_group.peers[app.active_group.leader_id].ip
 	msg_id = str(uuid.uuid4())
 
-	store_message(
-		app,
-		msg,
-		msg_id,
-		group.group_id,
-		group.self_id,
-		app.logical_clock,
-	)
+	store_message(app, msg, msg_id, group.group_id, group.self_id, app.logical_clock)
 
 	logging.info(f"Networking message to leader {leader_ip}")
 	if group.self_id == group.leader_id:
@@ -284,9 +285,7 @@ def send_message(msg) -> bool:
 		logging.info("We are leader, broadcast")
 
 		app.logical_clock += 1
-		return message_broadcast(
-			app, msg, msg_id, group.group_id, group.self_id
-		)
+		return message_broadcast(app, msg, msg_id, group.group_id, group.self_id)
 	elif leader_ip:
 		# We are not the leader, send to leader who broadcasts to others
 		logging.info("We are not leader, broadcast through leader")

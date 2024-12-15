@@ -12,8 +12,8 @@ from tinyrpc import RPCClient
 import threading
 import time
 
-from structs.generic import Response
-from structs.nds import (
+from client.structs.generic import Response
+from client.structs.nds import (
 	NDS_Group,
 	FetchGroupResponse,
 	CreateGroupResponse,

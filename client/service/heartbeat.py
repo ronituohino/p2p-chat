@@ -6,8 +6,8 @@ import threading
 import time
 
 
-from structs.client import HeartbeatResponse
-from structs.nds import NDS_HeartbeatResponse
+from client.structs.client import HeartbeatResponse
+from client.structs.nds import NDS_HeartbeatResponse
 
 
 def start_heartbeat(app):

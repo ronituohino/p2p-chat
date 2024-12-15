@@ -1,11 +1,11 @@
 import logging
-from client.service.overseer import start_overseer
-from client.service.synchronization import (
+from .overseer import start_overseer
+from .synchronization import (
 	synchronize_messages_with_peers,
 	synchronize_with_leader,
 )
-from structs.client import UpdateGroupResponse
-from structs.generic import Response
+from client.structs.client import UpdateGroupResponse
+from client.structs.generic import Response
 
 
 ### LEADER ELECTION

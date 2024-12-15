@@ -2,7 +2,7 @@
 import logging
 import time
 
-from structs.client import (
+from client.structs.client import (
 	ReportLogicalClockResponse,
 	CallForSynchronizationResponse,
 	UpdateMessagesResponse,

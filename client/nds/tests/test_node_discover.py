@@ -9,13 +9,13 @@ import time
 
 @pytest.fixture(scope="module", autouse=True)
 def server_process(tmp_path_factory):
-	db_path = tmp_path_factory.mktemp("test_db") / "groups.db"
-	process = Process(target=serve, args=(5001, str(db_path), True))
+	db_path = {tmp_path_factory.mktemp("test_db") / "groups.db"}
+	process = Process(target=serve, args=(5002, None, True))
 	process.start()
 
 	for _ in range(10): 
 		try:
-			with socket.create_connection(("127.0.0.1", 5001), timeout=1):
+			with socket.create_connection(("127.0.0.1", 5002), timeout=1):
 				break
 		except (socket.timeout, ConnectionRefusedError):
 			time.sleep(0.5)
@@ -33,7 +33,7 @@ def server_process(tmp_path_factory):
 
 @pytest.fixture
 def rpc_client():
-	transport = HttpPostClientTransport(f"http://127.0.0.1:5001/")
+	transport = HttpPostClientTransport(f"http://127.0.0.1:5002/")
 	client = RPCClient(JSONRPCProtocol(), transport)
 	return client
 

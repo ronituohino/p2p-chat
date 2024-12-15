@@ -6,7 +6,7 @@ import threading
 import time
 
 
-from structs.nds import FetchGroupResponse
+from client.structs.nds import FetchGroupResponse
 
 
 def start_crawler(app):
@@ -30,6 +30,7 @@ def crawler_thread(app):
 		group = app.active_group
 		nds_servers = app.nds_servers
 		networking = app.networking
+		
 		try:
 			while True:
 				logging.info("CRWL: Crawling.")

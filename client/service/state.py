@@ -1,5 +1,5 @@
 import threading
-from structs.client import Group
+from client.structs.client import Group
 from tinyrpc import RPCClient
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.http import HttpPostClientTransport
@@ -45,7 +45,7 @@ class AppState:
 		instance.request_to_join_group = None
 
 		instance.heartbeat_min_interval = 2
-		instance.heartbeat_max_interval = 60
+		instance.heartbeat_max_interval = 5
 
 		instance.heartbeat = None
 		instance.heartbeat_counter = 0  # set to the id of the heartbeat
@@ -58,8 +58,8 @@ class AppState:
 		instance.overseer_counter = 0  # set to the id of the heartbeat
 		instance.overseer_kill_flags = set()
 		instance.overseer_lock = threading.Lock()
-		instance.overseer_cycles_timeout = 30
-		instance.overseer_interval = 10
+		instance.overseer_cycles_timeout = 10
+		instance.overseer_interval = 2
 
 	@property
 	def active_group(self):

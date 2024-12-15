@@ -2,8 +2,8 @@ from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static, Tree, Input
 from textual.widgets.tree import TreeNode
-from structs.client import Group
-from structs.nds import NDS_Group
+from client.structs.client import Group
+from client.structs.nds import NDS_Group
 
 import logging
 

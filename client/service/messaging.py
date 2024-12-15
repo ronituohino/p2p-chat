@@ -1,6 +1,6 @@
 ### MESSAGING
 import logging
-from structs.client import ReceiveMessageResponse
+from client.structs.client import ReceiveMessageResponse
 
 
 def message_broadcast(app, msg, msg_id, group_id, source_id) -> bool:

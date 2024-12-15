@@ -1,5 +1,5 @@
 from multiprocessing import Process
-from service.server import serve, create_group, join_group, send_message, message_broadcast, store_message, get_group_info, get_messages, leave_group
+from client.service.server import serve, create_group, join_group, send_message, message_broadcast, store_message
 import pytest
 from unittest.mock import MagicMock, patch
 

@@ -10,7 +10,7 @@ from client.service import (
 import sys
 import logging
 
-from structs.client import Group
+from client.structs import Group
 ### CLIENT ENTRYPOINT
 
 
