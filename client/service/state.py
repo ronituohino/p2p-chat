@@ -1,5 +1,5 @@
 import threading
-from structs.client import Group
+from client.structs.client import Group
 from tinyrpc import RPCClient
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.http import HttpPostClientTransport
