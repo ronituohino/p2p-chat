@@ -14,11 +14,7 @@ def start_crawler(app):
 	logging.info("CRWL: Got signal to start crawler...")
 	if not app.crawler or not app.crawler.is_alive():
 		logging.info("CRWL: Crawler starting to run.")
-		app.crawler = threading.Thread(
-			target=crawler_thread,
-			args=(app,),
-			daemon=True,
-		)
+		app.crawler = threading.Thread(target=crawler_thread, args=(app,), daemon=True)
 		app.crawler.start()
 	else:
 		logging.info("CRWL: Crawler already running.")
@@ -26,18 +22,30 @@ def start_crawler(app):
 
 def crawler_thread(app):
 	logging.info("CRWL: Crawler starting.")
-	group = app.active_group
-	nds_servers = app.nds_servers
-	networking = app.networking
-	
+
 	try:
 		while True:
+			group = app.active_group
+			nds_servers = app.nds_servers
+			networking = app.networking
+
+			if not group:
+				logging.warning("CRWL: No active group found. Skipping.")
+				time.sleep(app.crawler_refresh_rate)
+				continue
 			logging.info("CRWL: Crawling.")
 			for nds_ip, nds in nds_servers.items():
 				response: FetchGroupResponse = FetchGroupResponse.from_json(
 					nds.get_groups()
 				)
-				if response.ok:
+
+				latest_groups = response.groups if response.ok else []
+				latest_ids = {group.group_id for group in latest_groups}
+				current_ids = {group.group_id for group in app.active_group}
+				added_ids = latest_ids - current_ids
+				removed_ids = current_ids - latest_ids
+
+				if response.ok and (added_ids or removed_ids):
 					networking.reload_all_groups(nds_ip, group, response.groups)
 
 			# Wait for a bit before fetching again

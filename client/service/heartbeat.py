@@ -14,7 +14,8 @@ def start_heartbeat(app):
 	if app.heartbeat:
 		# Kill existing heartbeat
 		logging.info(f"Killing heartbeat {app.heartbeat_counter}")
-		app.heartbeat_kill_flags.remove(app.heartbeat_counter)
+		logging.info(f"Current kill flags: {app.heartbeat_kill_flags}")
+		app.heartbeat_kill_flags.discard(app.heartbeat_counter)
 		app.heartbeat_kill_flags.add(app.heartbeat_counter)
 
 	logging.info("Starting heartbeat sending.")
