@@ -1,5 +1,6 @@
 ## Synchronization
 import logging
+import threading
 import time
 
 from client.structs.client import (
@@ -88,43 +89,46 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 
 # Used on startup, when node joins it can synchronize its messages with leader.
 def synchronize_with_leader(app):
-	group = app.active_group
-	leader_id = group.leader_id
-	leader = group.peers.get(leader_id)
-	if not leader:
-		logging.warning("Leader not found in peers. Synchronization aborted.")
-		return False
+	def sync_thread():
+		group = app.active_group
+		leader_id = group.leader_id
+		leader = group.peers.get(leader_id)
+		if not leader:
+			logging.warning("Leader not found in peers. Synchronization aborted.")
+			return False
 
-	leader_ip = leader.ip
-	attempts = 3
-	while attempts:
-		try:
-			remote_server = app.create_rpc_client(leader_ip, app.node_port)
-			response: CallForSynchronizationResponse = (
-				CallForSynchronizationResponse.from_json(
-					remote_server.call_for_synchronization(
-						group.group_id, app.logical_clock
+		leader_ip = leader.ip
+		attempts = 3
+		while attempts:
+			try:
+				remote_server = app.create_rpc_client(leader_ip, app.node_port)
+				response: CallForSynchronizationResponse = (
+					CallForSynchronizationResponse.from_json(
+						remote_server.call_for_synchronization(
+							group.group_id, app.logical_clock
+						)
 					)
 				)
-			)
-			if response.ok:
-				missing_messages = response.data.get("missing_messages", [])
-				if missing_messages:
-					logging.info(
-						f"Received {len(missing_messages)} missing messages from leader."
-					)
-					store_missing_messages(app, group.group_id, missing_messages)
-					return True
-				else:
-					logging.info("No missing messages from leader")
+				if response.ok:
+					missing_messages = response.data.get("missing_messages", [])
+					if missing_messages:
+						logging.info(
+							f"Received {len(missing_messages)} missing messages from leader."
+						)
+						store_missing_messages(app, group.group_id, missing_messages)
+						return True
+					else:
+						logging.info("No missing messages from leader")
 
-			else:
-				logging.warning(f"Synchronization failed: {response.message}")
-		except Exception as e:
-			logging.error("Error during synchronization with leader", exc_info=True)
-			return False
-		return True
-	
+				else:
+					logging.warning(f"Synchronization failed: {response.message}")
+			except Exception as e:
+				logging.error("Error during synchronization with leader", exc_info=True)
+				return False
+			return True
+
+	thread = threading.Thread(target=sync_thread, daemon=True)
+	thread.start()
 
 
 def store_missing_messages(app, group_id, missing_messages):
