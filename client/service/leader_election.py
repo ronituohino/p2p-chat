@@ -28,7 +28,7 @@ def leader_election(app, group_id):
 
 			logging.info(f"Pinging {peer_id} if they want to be leader...")
 			try:
-				remote_server = app.create_rpc_client(peer_ip, app.node_port)
+				remote_server = app.create_rpc_client(peer_ip, app.node_port).get_proxy()
 				response: Response = Response.from_json(
 					remote_server.election_message(group_id, app.active_group.self_id)
 				)
@@ -93,6 +93,7 @@ def update_nds_server(app):
 	group_id = app.active_group.group_id
 	nds_ip = app.active_group.nds_ip
 	remote_server = app.nds_servers[nds_ip]
+	remote_server.get_proxy()
 
 	for _ in range(3):
 		if remote_server:
@@ -115,7 +116,7 @@ def broadcast_new_leader(app):
 		peer_ip = peer_info.ip
 
 		try:
-			remote_server = app.create_rpc_client(peer_ip, app.node_port)
+			remote_server = app.create_rpc_client(peer_ip, app.node_port).get_proxy()
 			response: Response = Response.from_json(
 				remote_server.update_leader(
 					app.active_group.group_id, app.active_group.self_id

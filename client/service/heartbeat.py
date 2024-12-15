@@ -58,12 +58,14 @@ def send_heartbeat_to_leader(app):
 
 	try:
 		leader_ip = leader.ip
-		client = app.create_rpc_client(leader_ip, app.node_port)
+		client = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
 		logging.info(
 			f"HB: Sending heartbeat to leader from Peer ID {app.active_group.self_id}."
 		)
 		response: HeartbeatResponse = HeartbeatResponse.from_json(
-			client.receive_heartbeat(app.active_group.self_id, app.active_group.group_id)
+			client.receive_heartbeat(
+				app.active_group.self_id, app.active_group.group_id
+			)
 		)
 		if response.ok:
 			logging.info("HB: Refreshing peers.")
@@ -84,6 +86,7 @@ def send_heartbeat_to_leader(app):
 def send_heartbeat_to_nds(app):
 	# This node is leader, send heartbeat to NDS
 	remote_server = app.nds_servers[app.active_group.nds_ip]
+	remote_server.get_proxy()
 	if not remote_server:
 		logging.error("HB: NDS server not found.")
 		return False
@@ -93,6 +96,7 @@ def send_heartbeat_to_nds(app):
 		response: NDS_HeartbeatResponse = NDS_HeartbeatResponse.from_json(
 			remote_server.receive_heartbeat(app.active_group.group_id)
 		)
+		logging.info(f"HB: NDS message: {response.message}")
 		if response.ok:
 			logging.info("HB: NDS beats for heartbeat.")
 			return True

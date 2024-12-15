@@ -87,45 +87,39 @@ def store_message(app, msg, msg_id, group_id, source_id, msg_logical_clock):
 
 # Used on startup, when node joins it can synchronize its messages with leader.
 def synchronize_with_leader(app):
-	def sync_thread(app):
-		leader_id = app.active_group.leader_id
-		leader = app.active_group.peers.get(leader_id)
-		if not leader:
-			logging.warning("Leader not found in peers. Synchronization aborted.")
-			return False
+	leader_id = app.active_group.leader_id
+	leader = app.active_group.peers.get(leader_id)
+	if not leader:
+		logging.warning("Leader not found in peers. Synchronization aborted.")
+		return False
 
-		leader_ip = leader.ip
-		try:
-			remote_server = app.create_rpc_client(leader_ip, app.node_port)
-			response: CallForSynchronizationResponse = (
-				CallForSynchronizationResponse.from_json(
-					remote_server.call_for_synchronization(
-						app.active_group.group_id, app.logical_clock
-					)
+	leader_ip = leader.ip
+	try:
+		remote_server = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
+		response: CallForSynchronizationResponse = (
+			CallForSynchronizationResponse.from_json(
+				remote_server.call_for_synchronization(
+					app.active_group.group_id, app.logical_clock
 				)
 			)
-			if response.ok:
-				missing_messages = response.data.get("missing_messages", [])
-				if missing_messages:
-					logging.info(
-						f"Received {len(missing_messages)} missing messages from leader."
-					)
-					store_missing_messages(
-						app, app.active_group.group_id, missing_messages
-					)
-					return True
-				else:
-					logging.info("No missing messages from leader")
-
+		)
+		if response.ok:
+			missing_messages = response.data.get("missing_messages", [])
+			if missing_messages:
+				logging.info(
+					f"Received {len(missing_messages)} missing messages from leader."
+				)
+				store_missing_messages(app, app.active_group.group_id, missing_messages)
+				return True
 			else:
-				logging.warning(f"Synchronization failed: {response.message}")
-		except Exception as e:
-			logging.error("Error during synchronization with leader", exc_info=True)
-			return False
-		return True
+				logging.info("No missing messages from leader")
 
-	thread = threading.Thread(target=sync_thread, args=(app,), daemon=True)
-	thread.start()
+		else:
+			logging.warning(f"Synchronization failed: {response.message}")
+	except Exception as e:
+		logging.error("Error during synchronization with leader", exc_info=True)
+		return False
+	return True
 
 
 def store_missing_messages(app, group_id, missing_messages):
@@ -179,7 +173,7 @@ def synchronize_with_peer(app, group, peer, all_messages):
 		return None
 
 	try:
-		remote_server = app.create_rpc_client(peer.ip, app.node_port)
+		remote_server = app.create_rpc_client(peer.ip, app.node_port).get_proxy()
 		peer_logical_clock = get_peer_logical_clock(remote_server, group, peer_id)
 		if not peer_logical_clock:
 			logging.warning(f"Skipping peer {peer.peer_id} due to unreachable clock.")

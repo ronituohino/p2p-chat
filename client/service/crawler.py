@@ -26,6 +26,7 @@ def crawler_thread(app):
 		while True:
 			logging.info("CRWL: Crawling.")
 			for nds_ip, nds in app.nds_servers.items():
+				nds = nds.get_proxy()
 				response: FetchGroupResponse = FetchGroupResponse.from_json(
 					nds.get_groups()
 				)

@@ -8,9 +8,8 @@ from main import serve
 import time
 
 @pytest.fixture(scope="module", autouse=True)
-def server_process(tmp_path_factory):
-	db_path = {tmp_path_factory.mktemp("test_db") / "groups.db"}
-	process = Process(target=serve, args=(5002, None, True))
+def server_process():
+	process = Process(target=serve, args=(5002,))
 	process.start()
 
 	for _ in range(10): 
@@ -23,12 +22,9 @@ def server_process(tmp_path_factory):
 		process.terminate()
 		pytest.fail("Server did not start within the timeout period")
 
-	yield str(db_path)
+	yield
 	process.terminate()
 	process.join()
-
-	for file in db_path.parent.glob("*.db*"):
-		file.unlink()
 
 
 @pytest.fixture
