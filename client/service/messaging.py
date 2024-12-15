@@ -15,12 +15,11 @@ def message_broadcast(app, msg, msg_id, group_id, source_id) -> bool:
 	Returns:
 		bool: If message was sent successfully.
 	"""
-	group = app.active_group
-	peers = list(group.peers.values())
+	peers = list(app.active_group.peers.values())
 	target_peers = []
 
 	for p in peers:
-		if p.node_id != source_id and p.node_id != group.self_id:
+		if p.node_id != source_id and p.node_id != app.active_group.self_id:
 			target_peers.append(p)
 
 	if not target_peers:

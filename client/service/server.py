@@ -82,6 +82,7 @@ def add_node_discovery_source(nds_ip):
 			remote_server.get_groups()
 		)
 		if response.ok:
+			app.active_group = response.groups
 			start_crawler(app)
 			return response.groups
 		else:
@@ -345,7 +346,8 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 	):
 		logging.warning("Detected missing messages. Initiating synchronization.")
 		try:
-			synchronize_with_leader(app)
+			if not synchronize_with_leader(app):
+				app.leader_election(app, app.active_group.group_id)
 		except Exception as e:
 			logging.error(f"Error during synchronization with leader: {e}")
 

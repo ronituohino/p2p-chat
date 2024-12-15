@@ -47,22 +47,21 @@ def leader_election(app, group_id):
 
 
 def become_leader(app):
-	group = app.active_group
-	self_id = group.self_id
+	self_id = app.active_group.self_id
 
 	logging.info("Pinging NDS that we want to be leader.")
 	did_update, new_nds_group = update_nds_server(app)
 
 	if did_update and new_nds_group:
 		logging.info("NDS made us leader.")
-		group.leader_id = self_id
+		app.active_group.leader_id = self_id
 		start_overseer(app)
 		broadcast_new_leader(app)
 		synchronize_messages_with_peers(app)
 
 	elif not new_nds_group:
 		logging.info("NDS has deleted the group already. Creating the group.")
-		new_group = app.create_group(group.group_name, group.nds_ip)
+		new_group = app.create_group(app.active_group.group_name, app.active_group.nds_ip)
 		app.active_group = new_group
 		app.networking.refresh_group(app.active_group)
 
@@ -79,9 +78,8 @@ def become_leader(app):
 
 
 def update_nds_server(app):
-	group = app.active_group
-	group_id = group.group_id
-	nds_ip = group.nds_ip
+	group_id = app.active_group.group_id
+	nds_ip = app.active_group.nds_ip
 	remote_server = app.nds_servers[nds_ip]
 
 	if remote_server:
@@ -96,9 +94,8 @@ def update_nds_server(app):
 
 
 def broadcast_new_leader(app):
-	group = app.active_group
-	peers = group.peers
-	self_id = group.self_id
+	peers = app.active_group.peers
+	self_id = app.active_group.self_id
 
 	peers_to_remove = []
 	for peer_id, peer_info in peers.items():
@@ -109,7 +106,7 @@ def broadcast_new_leader(app):
 		try:
 			remote_server = app.create_rpc_client(peer_ip, app.node_port)
 			response: Response = Response.from_json(
-				remote_server.update_leader(group.group_id, self_id)
+				remote_server.update_leader(app.active_group.group_id, self_id)
 			)
 			if not response.ok:
 				peers_to_remove.append(peer_id)

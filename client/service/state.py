@@ -86,7 +86,7 @@ class AppState:
 		"""
 		rpc_client = RPCClient(
 			JSONRPCProtocol(),
-			HttpPostClientTransport(f"http://{ip}:{port}/", timeout=5),
+			HttpPostClientTransport(f"http://{ip}:{port}/", timeout=10),
 		)
 		return rpc_client.get_proxy()
 

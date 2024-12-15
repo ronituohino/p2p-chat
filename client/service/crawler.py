@@ -31,13 +31,7 @@ def crawler_thread(app):
 					nds.get_groups()
 				)
 
-				latest_groups = response.groups if response.ok else []
-				latest_ids = {group.group_id for group in latest_groups}
-				current_ids = {group.group_id for group in app.active_group}
-				added_ids = latest_ids - current_ids
-				removed_ids = current_ids - latest_ids
-
-				if response.ok and (added_ids or removed_ids):
+				if response.ok:
 					app.networking.reload_all_groups(nds_ip, app.active_group, response.groups)
 
 			# Wait for a bit before fetching again
