@@ -124,6 +124,7 @@ def synchronize_with_leader(app):
 			logging.error("Error during synchronization with leader", exc_info=True)
 			return False
 		return True
+	
 
 
 def store_missing_messages(app, group_id, missing_messages):

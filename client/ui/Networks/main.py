@@ -73,7 +73,6 @@ class Networks(Static):
 	def find_group_node(self, grp: None | Group | NDS_Group) -> TreeNode | None:
 		if not grp:
 			logging.warning(f"Group node for group {grp} not found.")
-			self.close_other_groups(None)
 			return None
 
 		tree = self.query_one("Tree")
@@ -113,25 +112,11 @@ class Networks(Static):
 			self.app.chat.chat_log.clear()
 
 	def add_peers(self, group_node, group: Group):
-		if not group.peers:
-			logging.warning(f"Group {group} has no peers.")
-			return None
-
-		try:
-			group_node.remove_children()
-		except Exception as e:
-			logging.error(f"Failed to clear children of group node {group_node}.")
-
-		logging.info(f"Processing peers: {group.peers}")
-		for peer_node in group.peers.values():
-			logging.info(f"Processing peer {peer_node}")
-			try:
-				if group.leader_id == peer_node.node_id:
-					group_node.add_leaf(f"{peer_node.name} (★)")
-				else:
-					group_node.add_leaf(f"{peer_node.name}")
-			except Exception as e:
-				logging.error(f"Failed to add leaf to peer {peer_node.name}: {e}")
+		for peer_node in list(group.peers.values()):
+			if group.leader_id == peer_node.node_id:
+				group_node.add_leaf(f"{peer_node.name} (★)")
+			else:
+				group_node.add_leaf(peer_node.name)
 
 	async def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
 		"""Called when any node is expanded in the tree"""

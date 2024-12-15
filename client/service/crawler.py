@@ -22,7 +22,6 @@ def start_crawler(app):
 
 def crawler_thread(app):
 	logging.info("CRWL: Crawler starting.")
-
 	try:
 		while True:
 			logging.info("CRWL: Crawling.")
