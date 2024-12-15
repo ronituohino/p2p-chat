@@ -23,9 +23,7 @@ def start_overseer(app):
 def overseer_thread(app, ov_id: int):
 	"""Thread to monitor hearbeats from followers, deleting ones not active"""
 	try:
-		previous_state = (
-			set(app.active_group.peers.keys()) if app.active_group else set()
-		)
+		previous_state = set(app.active_group.peers.keys())
 		while True:
 			logging.info(f"OV: Overseeing at {ov_id}.")
 			if ov_id in app.overseer_kill_flags:
@@ -39,7 +37,6 @@ def overseer_thread(app, ov_id: int):
 				raise InterruptedError
 
 			with app.overseer_lock:
-
 				nodes_to_delete = []
 				for node_id in app.last_node_response.keys():
 					app.last_node_response[node_id] = (
@@ -62,7 +59,7 @@ def overseer_thread(app, ov_id: int):
 
 			if added_peers or removed_peers:
 				logging.info(
-					"OV: State change, Added {added_peers}, Removed {removed_peers}"
+					f"OV: State change, Added {added_peers}, Removed {removed_peers}"
 				)
 				app.networking.refresh_group(app.active_group)
 

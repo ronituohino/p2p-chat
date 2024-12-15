@@ -70,10 +70,12 @@ def send_heartbeat_to_leader(app):
 				client.receive_heartbeat(active.self_id, active.group_id)
 			)
 			if response.ok:
-				logging.info("HB: Refreshing peers.")
-
 				if set(response.peers.keys()) != set(app.active_group.peers.keys()):
+					logging.info("HB: Refreshing peers.")
 					for peer_id, peer_data in response.peers.items():
+						logging.info(
+							f"Adding peer {peer_id} to group with data: {peer_data}"
+						)
 						app.active_group.peers[peer_id] = peer_data
 					app.networking.refresh_group(app.active_group)
 
