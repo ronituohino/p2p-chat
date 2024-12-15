@@ -77,7 +77,7 @@ def add_node_discovery_source(nds_ip):
 	"""
 	remote_server = app.create_rpc_client(ip=nds_ip, port=app.nds_port)
 	app.nds_servers[nds_ip] = remote_server
-	remote_server.get_proxy()
+	remote_server = remote_server.get_proxy()
 
 	try:
 		response: FetchGroupResponse = FetchGroupResponse.from_json(
@@ -109,7 +109,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 		Group obj: newly created group
 	"""
 	remote_server = app.nds_servers[nds_ip]
-	remote_server.get_proxy()
+	remote_server = remote_server.get_proxy()
 	if not remote_server:
 		logging.error(f"NDS server with IP {nds_ip} does not exist.")
 		return None

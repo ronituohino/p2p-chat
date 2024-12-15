@@ -93,7 +93,7 @@ def update_nds_server(app):
 	group_id = app.active_group.group_id
 	nds_ip = app.active_group.nds_ip
 	remote_server = app.nds_servers[nds_ip]
-	remote_server.get_proxy()
+	remote_server = remote_server.get_proxy()
 
 	for _ in range(3):
 		if remote_server:
