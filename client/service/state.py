@@ -54,7 +54,7 @@ class AppState:
 		instance.heartbeat_kill_flags = set()
 
 		instance.crawler = None
-		instance.crawler_refresh_rate = 10
+		instance.crawler_refresh_rate = 5
 
 		instance.overseer = None
 		instance.overseer_counter = 0  # set to the id of the heartbeat
