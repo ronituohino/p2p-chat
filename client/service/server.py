@@ -123,14 +123,18 @@ def create_group(group_name, nds_ip) -> Group | None:
 
 		if response.ok:
 			group_id = response.group.group_id
-			this_node = Node(node_id=app.active_group.self_id, name=app.name, ip=response.group.leader_ip)
+			this_node = Node(
+				node_id=app.active_group.self_id,
+				name=app.name,
+				ip=response.group.leader_ip,
+			)
 			this_group = Group(
 				group_id=group_id,
 				name=group_name,
 				nds_ip=nds_ip,
-				self_id=app.active_group.self_id,
-				leader_id=app.active_group.self_id,
-				peers={app.active_group.self_id: this_node},
+				self_id=app.self_id,
+				leader_id=app.self_id,
+				peers={app.self_id: this_node},
 			)
 
 			app.active_group = this_group
@@ -418,7 +422,11 @@ def election_message(group_id, candidate_id):
 @dispatcher.public
 def still_leader_of_group(group_id):
 	"""Check if still a leader of the group."""
-	if app.active_group and app.active_group.group_id == group_id and app.active_group.leader_id == app.active_group.self_id:
+	if (
+		app.active_group
+		and app.active_group.group_id == group_id
+		and app.active_group.leader_id == app.active_group.self_id
+	):
 		return Response(ok=True).to_json()
 	else:
 		return Response(ok=False).to_json()
@@ -443,11 +451,10 @@ def call_for_synchronization(group_id, peer_logical_clock):
 		).to_json()
 
 	all_messages = app.message_store.get(group_id, [])
-	
+
 	missing_messages = [
 		msg for msg in all_messages if msg["logical_clock"] > peer_logical_clock
 	][-50:]
-
 
 	return CallForSynchronizationResponse(
 		ok=True,

@@ -21,6 +21,8 @@ class AppState:
 		instance._active_group: Group = None
 		instance.logical_clock = 0
 
+		instance.self_id = 0
+
 		instance.message_store = {}
 		instance.received_messages = set()
 		instance.message_timestamps = {}
@@ -69,6 +71,7 @@ class AppState:
 	def active_group(self, group):
 		self._active_group = group
 		if group:
+			self.self_id = group.self_id
 			with self.overseer_lock:
 				self.last_node_response = {node_id: 0 for node_id in group.peers.keys()}
 
