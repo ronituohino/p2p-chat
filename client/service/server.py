@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 import logging
 import gevent
@@ -124,9 +125,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 		if response.ok:
 			group_id = response.group.group_id
 			this_node = Node(
-				node_id=app.self_id,
-				name=app.name,
-				ip=response.group.leader_ip,
+				node_id=app.self_id, name=app.name, ip=response.group.leader_ip
 			)
 			this_group = Group(
 				group_id=group_id,
@@ -443,7 +442,7 @@ def update_leader(group_id, new_leader_id):
 
 
 @dispatcher.public
-def call_for_synchronization(group_id, peer_logical_clock):
+async def call_for_synchronization(group_id, peer_logical_clock):
 	logging.info("Calling for synchronization.")
 	if group_id != app.active_group.group_id:
 		return CallForSynchronizationResponse(
@@ -455,6 +454,8 @@ def call_for_synchronization(group_id, peer_logical_clock):
 	missing_messages = [
 		msg for msg in all_messages if msg["logical_clock"] > peer_logical_clock
 	][-50:]
+
+	await asyncio.sleep(0)
 
 	return CallForSynchronizationResponse(
 		ok=True,
