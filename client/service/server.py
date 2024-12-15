@@ -1,3 +1,7 @@
+from gevent import monkey
+
+monkey.patch_all()
+
 import json
 import uuid
 import logging
@@ -38,9 +42,6 @@ from client.structs.generic import Response
 from client.structs.nds import FetchGroupResponse, CreateGroupResponse
 
 # This needs the server to be on one thread, otherwise IPs will get messed up
-from gevent import monkey
-
-monkey.patch_all()
 
 
 # Custom WSGI app to handle IP extraction
