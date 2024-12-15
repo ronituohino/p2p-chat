@@ -39,9 +39,10 @@ def overseer_thread(app, ov_id: int):
 			with app.overseer_lock:
 				nodes_to_delete = []
 				for node_id in app.last_node_response.keys():
-					app.last_node_response[node_id] = (
-						app.last_node_response[node_id] + 1
-					)
+					if node_id == app.active_group.self_id:
+						app.last_node_response[node_id] = 0
+
+					app.last_node_response[node_id] += 1
 					if app.last_node_response[node_id] > app.overseer_cycles_timeout:
 						# If have not received heartbeat from group leader in 10 cycles, delete Group
 						nodes_to_delete.append(node_id)
