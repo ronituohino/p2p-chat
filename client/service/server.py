@@ -1,4 +1,5 @@
 import asyncio
+import json
 import uuid
 import logging
 import gevent
@@ -206,7 +207,7 @@ app.request_to_join_group = request_to_join_group
 
 
 @dispatcher.public
-def join_group(peer_name, group_id):
+async def join_group(peer_name, group_id):
 	"""
 	This is called when a client asks the group leader if they could join.
 
@@ -324,7 +325,7 @@ def send_message(msg) -> bool:
 
 
 @dispatcher.public
-def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
+async def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 	"""Handle receiving a message from peer.
 	If message is meant for current node, then it will store it, otherwise it will
 	broadcast it forward.
@@ -379,7 +380,7 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 
 
 @dispatcher.public
-def receive_heartbeat(peer_id, group_id):
+async def receive_heartbeat(peer_id, group_id):
 	if app.active_group.group_id != group_id:
 		return HeartbeatResponse(
 			ok=False, message="changed-group", peers=None, logical_clock=0
@@ -400,7 +401,7 @@ def receive_heartbeat(peer_id, group_id):
 
 
 @dispatcher.public
-def report_logical_clock(group_id):
+async def report_logical_clock(group_id):
 	if group_id == app.active_group.group_id:
 		return ReportLogicalClockResponse(
 			ok=True,
@@ -410,7 +411,7 @@ def report_logical_clock(group_id):
 
 
 @dispatcher.public
-def election_message(group_id, candidate_id):
+async def election_message(group_id, candidate_id):
 	if group_id == app.active_group.group_id:
 		self_id = app.active_group.self_id
 		if self_id < candidate_id:
@@ -421,7 +422,7 @@ def election_message(group_id, candidate_id):
 
 
 @dispatcher.public
-def still_leader_of_group(group_id):
+async def still_leader_of_group(group_id):
 	"""Check if still a leader of the group."""
 	if (
 		app.active_group
@@ -434,7 +435,7 @@ def still_leader_of_group(group_id):
 
 
 @dispatcher.public
-def update_leader(group_id, new_leader_id):
+async def update_leader(group_id, new_leader_id):
 	"""Update the new leader."""
 	if app.active_group and app.active_group.group_id == group_id:
 		app.active_group.leader_id = new_leader_id
@@ -457,6 +458,11 @@ async def call_for_synchronization(group_id, peer_logical_clock):
 		msg for msg in all_messages if msg["logical_clock"] > peer_logical_clock
 	][-50:]
 
+	try:
+		json.dumps(missing_messages)
+	except TypeError as e:
+		logging.error(f"Serialization error: {e}")
+
 	await asyncio.sleep(0)
 
 	return CallForSynchronizationResponse(
@@ -467,7 +473,7 @@ async def call_for_synchronization(group_id, peer_logical_clock):
 
 
 @dispatcher.public
-def update_messages(group_id, messages):
+async def update_messages(group_id, messages):
 	group = app.active_group
 
 	if group_id == group.group_id:

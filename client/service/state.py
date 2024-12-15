@@ -89,7 +89,7 @@ class AppState:
 		"""
 		rpc_client = RPCClient(
 			JSONRPCProtocol(),
-			HttpPostClientTransport(f"http://{ip}:{port}/", timeout=10),
+			HttpPostClientTransport(f"http://{ip}:{port}/", timeout=20),
 		)
 		return rpc_client
 

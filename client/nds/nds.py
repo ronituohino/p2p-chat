@@ -74,7 +74,7 @@ def create_rpc_client(ip, port):
 	This itself does not attempt to send anything, so it cannot fail.
 	"""
 	rpc_client = RPCClient(
-		JSONRPCProtocol(), HttpPostClientTransport(f"http://{ip}:{port}/", timeout=5)
+		JSONRPCProtocol(), HttpPostClientTransport(f"http://{ip}:{port}/", timeout=10)
 	)
 	return rpc_client
 
