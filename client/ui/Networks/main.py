@@ -94,6 +94,7 @@ class Networks(Static):
 		logging.info(f"Refreshing group: {group}")
 		group_node = self.find_group_node(group)
 
+		logging.info(f"Got here: {group_node}")
 		if group_node:
 			try:
 				current_peer_labels = {child.label for child in group_node.children}

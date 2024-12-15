@@ -39,15 +39,22 @@ def overseer_thread(app, ov_id: int):
 				)
 				raise InterruptedError
 
+			logging.info(f"OV: last node responses: {app.last_node_response} and peers: {app.active_group.peers}")
 			with app.overseer_lock:
+				logging.info(f"OV: overseer {ov_id} acquired lock")
 				nodes_to_delete = []
 				for node_id in app.last_node_response.keys():
+					logging.info(f"OV: node {node_id} has following node response count {app.last_node_response[node_id]}")
+					if node_id not in app.last_node_response:
+						app.last_node_response[node_id] = 0
+
 					if node_id == app.active_group.self_id:
 						app.last_node_response[node_id] = 0
+						continue
 
 					app.last_node_response[node_id] += 1
 					if app.last_node_response[node_id] > app.overseer_cycles_timeout:
-						# If have not received heartbeat from group leader in 10 cycles, delete Group
+						# If have not received heartbeat from group leader in x cycles, delete Group
 						logging.info(f"Removing a node with node ID: {node_id}")
 						nodes_to_delete.append(node_id)
 
@@ -69,7 +76,6 @@ def overseer_thread(app, ov_id: int):
 				app.networking.refresh_group(app.active_group)
 
 			previous_state = updated_state
-
 			time.sleep(app.overseer_interval)
 	except Exception as e:
 		logging.error(f"EXC: Critical error, Overseer failed {e}")
