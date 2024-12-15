@@ -124,7 +124,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 		if response.ok:
 			group_id = response.group.group_id
 			this_node = Node(
-				node_id=app.active_group.self_id,
+				node_id=app.self_id,
 				name=app.name,
 				ip=response.group.leader_ip,
 			)
