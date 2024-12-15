@@ -2,8 +2,8 @@ from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static, Tree, Input
 from textual.widgets.tree import TreeNode
-from client.structs import Group
-from client.structs import NDS_Group
+from structs.client import Group
+from structs.nds import NDS_Group
 
 import logging
 
@@ -72,29 +72,20 @@ class Networks(Static):
 
 	def find_group_node(self, grp: None | Group | NDS_Group) -> TreeNode | None:
 		if not grp:
-			logging.warning(f"Group node for group {grp} not found.")
 			return None
 
 		tree = self.query_one("Tree")
 		active_node = None
 		for nds in tree.root.children:
 			for node in nds.children:
-				if not node.data or not hasattr(node.data, "group_id"):
-					continue
 				if node.data.group_id == grp.group_id:
 					active_node = node
 					break
 		return active_node
 
 	def refresh_group(self, group: Group | None):
-		if group is None:
-			logging.warning("Group is None. Closing all other groups.")
-			self.close_other_groups(None)
-			return None
-
 		logging.info(f"Refreshing group: {group}")
 		group_node = self.find_group_node(group)
-
 		if group_node:
 			group_node.remove_children()
 			self.add_peers(group_node, group)

@@ -119,4 +119,4 @@ def broadcast_new_leader(app):
 			continue
 
 	for peer_id in peers_to_remove:
-		group.peers.pop(peer_id)
+		app.active_group.peers.peers.pop(peer_id)
