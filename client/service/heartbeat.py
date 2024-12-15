@@ -86,7 +86,7 @@ def send_heartbeat_to_leader(app):
 def send_heartbeat_to_nds(app):
 	# This node is leader, send heartbeat to NDS
 	remote_server = app.nds_servers[app.active_group.nds_ip]
-	remote_server.get_proxy()
+	remote_server = remote_server.get_proxy()
 	if not remote_server:
 		logging.error("HB: NDS server not found.")
 		return False
