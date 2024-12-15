@@ -8,6 +8,7 @@ from .Networks.main import Networks
 from .Networks.add_discovery_source import AddDiscoverySource
 from .Networks.create_group import CreateGroup
 
+
 class ChatApp(App):
 	"""The main ui class"""
 
@@ -67,3 +68,4 @@ class ChatApp(App):
 		elif action == "create_group" and not self.networks.network_labels:
 			return None
 		return True
+

@@ -17,7 +17,7 @@ addresses of the leaders.
 ## TODO
 
 - Leader election system refactor and integration
-- Message reordering with vector clocks, heartbeat system carries this info
+- Message reordering with logical clocks, heartbeat system carries this info
 - Ping NDS function (refresh button / thread with timer) so that new group info is fetched 
 
 Optional:

@@ -31,7 +31,7 @@ def message_broadcast(app, msg, msg_id, group_id, source_id) -> bool:
 	for peer in target_peers:
 		send_message_to_peer(
 			app, peer.ip, msg, msg_id, group_id, source_id, app.logical_clock
-		)
+		) 
 		
 	return True
 
