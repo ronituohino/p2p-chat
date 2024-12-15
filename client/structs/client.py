@@ -82,7 +82,7 @@ class Group:
 	name: str
 	leader_id: int
 	self_id: int
-	_peers: dict[int, Node]
+	peers: dict[int, Node]
 	nds_ip: str
 
 
