@@ -25,10 +25,6 @@ def crawler_thread(app):
 
 	try:
 		while True:
-			if not app.active_group:
-				logging.warning("CRWL: No active group found. Skipping.")
-				time.sleep(app.crawler_refresh_rate)
-				continue
 			logging.info("CRWL: Crawling.")
 			for nds_ip, nds in app.nds_servers.items():
 				response: FetchGroupResponse = FetchGroupResponse.from_json(
