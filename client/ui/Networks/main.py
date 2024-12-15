@@ -112,7 +112,7 @@ class Networks(Static):
 
 		peers_to_remove = existing_peers - updated_peers
 		for child in list(group_node.children):
-			if child.label in peers_to_remove:
+			if child.label.plain in peers_to_remove:
 				group_node.remove_child(child)
 
 		peers_to_add = updated_peers - existing_peers
