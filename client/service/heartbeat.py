@@ -6,7 +6,7 @@ import threading
 import time
 
 
-from client.structs.client import HeartbeatResponse
+from client.structs.client import HeartbeatResponse, Node
 from client.structs.nds import NDS_HeartbeatResponse
 
 
@@ -69,7 +69,14 @@ def send_heartbeat_to_leader(app):
 		)
 		if response.ok:
 			logging.info("HB: Refreshing peers.")
-			app.active_group.peers = response.peers
+			peers = response.peers
+			if isinstance(peers, dict):
+				peers = {
+					peer_id: Node(**peer) if isinstance(peer, dict) else peer
+					for peer_id, peer in response.peers.items()
+				}
+
+			app.active_group.peers = peers
 			app.networking.refresh_group(app.active_group)
 		elif response.message == "changed-group":
 			logging.warning("HB: Leader changed group.")

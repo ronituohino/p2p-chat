@@ -28,7 +28,7 @@ class NDS_Group:
 
 	group_id: str
 	name: str
-	leader_ip: str
+	leader_ip: str 
 
 
 @dataclass_json
@@ -84,19 +84,6 @@ class Group:
 	self_id: int
 	_peers: dict[int, Node]
 	nds_ip: str
-
-	@property
-	def peers(self) -> Dict[int, Node]:
-		"""Property to acces the pers dictionary"""
-		return self._peers
-
-	@peers.setter
-	def peers(self, new_peers: Dict[int, Node]):
-		"""Setter check peers is always dict of int and Node"""
-		self._peers = {
-			peer_id: (peer if isinstance(peer, Node) else Node(**peer))
-			for peer_id, peer in new_peers.items()
-		}
 
 
 @dataclass_json
