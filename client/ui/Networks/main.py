@@ -2,8 +2,8 @@ from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static, Tree, Input
 from textual.widgets.tree import TreeNode
-from client.structs.client import Group
-from client.structs.nds import NDS_Group
+from client.structs import Group
+from client.structs import NDS_Group
 
 import logging
 
@@ -96,35 +96,10 @@ class Networks(Static):
 		logging.info(f"Refreshing group: {group}")
 		group_node = self.find_group_node(group)
 
-		logging.info(f"Got here: {group_node}")
 		if group_node:
-			try:
-				current_peer_labels = {child.label for child in group_node.children}
-				updated_peer_labels = {
-					f"{peer.name} (★)" if peer.node_id == group.leader_id else peer.name
-					for peer in group.peers.values()
-				}
-
-				peers_to_remove = current_peer_labels - updated_peer_labels
-				peers_to_add = updated_peer_labels - current_peer_labels
-
-				logging.info(f"Following peers to remove: {peers_to_remove}")
-				logging.info(f"Following peers to add: {peers_to_add}")
-				for child in list(group_node.children):
-					if child.label in peers_to_remove:
-						logging.info(f"Removing peer: {child.label}")
-						group_node.remove_child(child)
-
-				for peer_label in peers_to_add:
-					logging.info(f"Adding new peer: {peer_label}")
-					group_node.add_leaf(peer_label)
-
-			except Exception as e:
-				logging.error(
-					f"Failed to remove children for group node {group_node}: {e}"
-				)
+			group_node.remove_children()
+			self.add_peers(group_node, group)
 		else:
-			logging.info("Closing other groups..")
 			self.close_other_groups(None)
 
 	async def join_group(self, group_node, group: NDS_Group):
