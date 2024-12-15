@@ -25,16 +25,12 @@ def crawler_thread(app):
 
 	try:
 		while True:
-			group = app.active_group
-			nds_servers = app.nds_servers
-			networking = app.networking
-
-			if not group:
+			if not app.active_group:
 				logging.warning("CRWL: No active group found. Skipping.")
 				time.sleep(app.crawler_refresh_rate)
 				continue
 			logging.info("CRWL: Crawling.")
-			for nds_ip, nds in nds_servers.items():
+			for nds_ip, nds in app.nds_servers.items():
 				response: FetchGroupResponse = FetchGroupResponse.from_json(
 					nds.get_groups()
 				)
@@ -46,7 +42,7 @@ def crawler_thread(app):
 				removed_ids = current_ids - latest_ids
 
 				if response.ok and (added_ids or removed_ids):
-					networking.reload_all_groups(nds_ip, group, response.groups)
+					app.networking.reload_all_groups(nds_ip, app.active_group, response.groups)
 
 			# Wait for a bit before fetching again
 			time.sleep(app.crawler_refresh_rate)

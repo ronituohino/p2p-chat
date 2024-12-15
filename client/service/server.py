@@ -36,17 +36,24 @@ from client.structs.generic import Response
 from client.structs.nds import FetchGroupResponse, CreateGroupResponse
 # This needs the server to be on one thread, otherwise IPs will get messed up
 
-app = AppState()
-dispatcher = RPCDispatcher()
-app.dispatcher = dispatcher
-app.leader_election = leader_election
-
 
 # Custom WSGI app to handle IP extraction
 class CustomWSGITransport(WsgiServerTransport):
 	def handle(self, environ, start_response):
 		app.env = environ
 		return super().handle(environ, start_response)
+
+
+app = AppState()
+dispatcher = RPCDispatcher()
+app.dispatcher = dispatcher
+app.leader_election = leader_election
+
+cleanup_thread = threading.Thread(
+	target=maintain_received_messages, args=(app,), daemon=True
+)
+
+cleanup_thread.start()
 
 
 def serve(net=None, node_name=None):
@@ -60,11 +67,6 @@ def serve(net=None, node_name=None):
 	rpc_server = RPCServerGreenlets(transport, JSONRPCProtocol(), dispatcher)
 	rpc_server.serve_forever()
 
-	cleanup_thread = threading.Thread(
-		target=maintain_received_messages, args=(app,), daemon=True
-	)
-
-	cleanup_thread.start()
 	logging.info("Server is running")
 
 
@@ -132,6 +134,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 
 			app.active_group = this_group
 			start_overseer(app)
+
 			logging.info(f"Created group, {group_name}, with ID: {group_id}")
 			return this_group
 		else:
@@ -246,6 +249,7 @@ def join_group(peer_name, group_id):
 		app.active_group.peers[assigned_peer_id] = Node(
 			node_id=assigned_peer_id, name=peer_name, ip=peer_ip
 		)
+
 		app.networking.refresh_group(app.active_group)
 		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 		return JoinGroupResponse(
@@ -273,19 +277,27 @@ def send_message(msg) -> bool:
 	if not app.active_group:
 		return False
 
-	group = app.active_group
 	leader_ip = app.active_group.peers[app.active_group.leader_id].ip
 	msg_id = str(uuid.uuid4())
 
-	store_message(app, msg, msg_id, group.group_id, group.self_id, app.logical_clock)
+	store_message(
+		app,
+		msg,
+		msg_id,
+		app.active_group.group_id,
+		app.active_group.self_id,
+		app.logical_clock,
+	)
 
 	logging.info(f"Networking message to leader {leader_ip}")
-	if group.self_id == group.leader_id:
+	if app.active_group.self_id == app.active_group.leader_id:
 		# We are the leader, broadcast to others
 		logging.info("We are leader, broadcast")
 
 		app.logical_clock += 1
-		return message_broadcast(app, msg, msg_id, group.group_id, group.self_id)
+		return message_broadcast(
+			app, msg, msg_id, app.active_group.group_id, app.active_group.self_id
+		)
 	elif leader_ip:
 		# We are not the leader, send to leader who broadcasts to others
 		logging.info("We are not leader, broadcast through leader")
@@ -320,8 +332,7 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 	Returns:
 		response: success / fail
 	"""
-	group = app.active_group
-	if not group or group.group_id != group_id:
+	if not app.active_group or app.active_group.group_id != group_id:
 		logging.warning("Couldn't receive a message, no longer in group.")
 		return ReceiveMessageResponse(ok=False, message="no-longer-in-group").to_json()
 	if msg_id in app.received_messages:
@@ -330,7 +341,7 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 
 	if (
 		leader_logical_clock > app.logical_clock + 1
-		and group.leader_id != group.self_id
+		and app.active_group.leader_id != app.active_group.self_id
 	):
 		logging.warning("Detected missing messages. Initiating synchronization.")
 		try:
@@ -350,7 +361,7 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 			ok=False, message="store-message-failed"
 		).to_json()
 
-	if group.self_id == group.leader_id:
+	if app.active_group.self_id == app.active_group.leader_id:
 		logging.info("Broadcasting the message forward.")
 		try:
 			message_broadcast(app, msg, msg_id, group_id, source_id)
@@ -362,31 +373,28 @@ def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 
 @dispatcher.public
 def receive_heartbeat(peer_id, group_id):
-	with app.overseer_lock:
-		active = app.active_group
-		if active.group_id != group_id:
-			return HeartbeatResponse(
-				ok=False, message="changed-group", peers=None, logical_clock=0
-			).to_json()
-
-		if peer_id in active.peers:
-			app.last_node_response[peer_id] = 0
-			return HeartbeatResponse(
-				ok=True,
-				message="ok",
-				peers=active.peers,
-				logical_clock=app.logical_clock,
-			).to_json()
-
+	if app.active_group.group_id != group_id:
 		return HeartbeatResponse(
-			ok=False, message="you-got-kicked-lol", peers=None, logical_clock=0
+			ok=False, message="changed-group", peers=None, logical_clock=0
 		).to_json()
+
+	if peer_id in app.active_group.peers:
+		app.last_node_response[peer_id] = 0
+		return HeartbeatResponse(
+			ok=True,
+			message="ok",
+			peers=app.active_group.peers,
+			logical_clock=app.logical_clock,
+		).to_json()
+
+	return HeartbeatResponse(
+		ok=False, message="you-got-kicked-lol", peers=None, logical_clock=0
+	).to_json()
 
 
 @dispatcher.public
 def report_logical_clock(group_id):
-	group = app.active_group
-	if group_id == group.group_id:
+	if group_id == app.active_group.group_id:
 		return ReportLogicalClockResponse(
 			ok=True,
 			message="Logical clock reported succesfully.",
@@ -396,9 +404,8 @@ def report_logical_clock(group_id):
 
 @dispatcher.public
 def election_message(group_id, candidate_id):
-	group = app.active_group
-	if group_id == group.group_id:
-		self_id = group.self_id
+	if group_id == app.active_group.group_id:
+		self_id = app.active_group.self_id
 		if self_id < candidate_id:
 			leader_election(app, group_id)
 			return Response(ok=True).to_json()
@@ -409,8 +416,7 @@ def election_message(group_id, candidate_id):
 @dispatcher.public
 def still_leader_of_group(group_id):
 	"""Check if still a leader of the group."""
-	group = app.active_group
-	if group and group.group_id == group_id and group.leader_id == group.self_id:
+	if app.active_group and app.active_group.group_id == group_id and app.active_group.leader_id == app.active_group.self_id:
 		return Response(ok=True).to_json()
 	else:
 		return Response(ok=False).to_json()
@@ -419,9 +425,8 @@ def still_leader_of_group(group_id):
 @dispatcher.public
 def update_leader(group_id, new_leader_id):
 	"""Update the new leader."""
-	group = app.active_group
-	if group and group.group_id == group_id:
-		group.leader_id = new_leader_id
+	if app.active_group and app.active_group.group_id == group_id:
+		app.active_group.leader_id = new_leader_id
 		return Response(ok=True).to_json()
 	else:
 		return Response(ok=False).to_json()
@@ -430,8 +435,7 @@ def update_leader(group_id, new_leader_id):
 @dispatcher.public
 def call_for_synchronization(group_id, peer_logical_clock):
 	logging.info("Calling for synchronization.")
-	group = app.active_group
-	if group_id != group.group_id:
+	if group_id != app.active_group.group_id:
 		return CallForSynchronizationResponse(
 			ok=False, message="This is the wrong group.", data={}
 		).to_json()

@@ -10,6 +10,7 @@ def start_overseer(app):
 	if app.overseer:
 		# Kill existing heartbeat
 		logging.info(f"Killing overseer {app.overseer_counter}.")
+		app.heartbeat_kill_flags.discard(app.heartbeat_counter)
 		app.overseer_kill_flags.add(app.overseer_counter)
 
 	logging.info("Starting overseer.")
