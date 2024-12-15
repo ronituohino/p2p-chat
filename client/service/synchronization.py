@@ -95,36 +95,34 @@ def synchronize_with_leader(app):
 			return False
 
 		leader_ip = leader.ip
-		attempts = 3
-		while attempts:
-			try:
-				remote_server = app.create_rpc_client(leader_ip, app.node_port)
-				response: CallForSynchronizationResponse = (
-					CallForSynchronizationResponse.from_json(
-						remote_server.call_for_synchronization(
-							app.active_group.group_id, app.logical_clock
-						)
+		try:
+			remote_server = app.create_rpc_client(leader_ip, app.node_port)
+			response: CallForSynchronizationResponse = (
+				CallForSynchronizationResponse.from_json(
+					remote_server.call_for_synchronization(
+						app.active_group.group_id, app.logical_clock
 					)
 				)
-				if response.ok:
-					missing_messages = response.data.get("missing_messages", [])
-					if missing_messages:
-						logging.info(
-							f"Received {len(missing_messages)} missing messages from leader."
-						)
-						store_missing_messages(
-							app, app.active_group.group_id, missing_messages
-						)
-						return True
-					else:
-						logging.info("No missing messages from leader")
-
+			)
+			if response.ok:
+				missing_messages = response.data.get("missing_messages", [])
+				if missing_messages:
+					logging.info(
+						f"Received {len(missing_messages)} missing messages from leader."
+					)
+					store_missing_messages(
+						app, app.active_group.group_id, missing_messages
+					)
+					return True
 				else:
-					logging.warning(f"Synchronization failed: {response.message}")
-			except Exception as e:
-				logging.error("Error during synchronization with leader", exc_info=True)
-				return False
-			return True
+					logging.info("No missing messages from leader")
+
+			else:
+				logging.warning(f"Synchronization failed: {response.message}")
+		except Exception as e:
+			logging.error("Error during synchronization with leader", exc_info=True)
+			return False
+		return True
 
 	thread = threading.Thread(target=sync_thread, args=(app,), daemon=True)
 	thread.start()
@@ -162,15 +160,14 @@ def store_missing_messages(app, group_id, missing_messages):
 
 ## If candidate becomes a leader, it will sync all peer messages and updates them based on logical clock.
 def synchronize_messages_with_peers(app):
-	group = app.active_group
-	if not group:
+	if not app.active_group:
 		logging.warning("No active group to synchronize messages with peers.")
 		return
 
-	all_messages = app.message_store[group.group_id]
-	for peer in group.peers.values():
+	all_messages = app.message_store[app.active_group.group_id]
+	for peer in app.active_group.peers.values():
 		try:
-			synchronize_with_peer(app, group, peer, all_messages)
+			synchronize_with_peer(app, app.active_group, peer, all_messages)
 		except Exception as e:
 			logging.error(f"Error synchronizing with peer {peer.peer_id}: {str(e)}")
 

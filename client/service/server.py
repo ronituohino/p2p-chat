@@ -106,7 +106,7 @@ def create_group(group_name, nds_ip) -> Group | None:
 	Returns:
 		Group obj: newly created group
 	"""
-	remote_server = app.nds_servers.get(nds_ip, False)
+	remote_server = app.nds_servers[nds_ip]
 	if not remote_server:
 		logging.error(f"NDS server with IP {nds_ip} does not exist.")
 		return None
@@ -116,20 +116,21 @@ def create_group(group_name, nds_ip) -> Group | None:
 		return None
 
 	try:
+		logging.info(f"Creating a new group: {group_name}")
 		response: CreateGroupResponse = CreateGroupResponse.from_json(
 			remote_server.create_group(group_name=group_name)
 		)
 
 		if response.ok:
 			group_id = response.group.group_id
-			this_node = Node(node_id=0, name=app.name, ip=response.group.leader_ip)
+			this_node = Node(node_id=app.active_group.self_id, name=app.name, ip=response.group.leader_ip)
 			this_group = Group(
 				group_id=group_id,
 				name=group_name,
 				nds_ip=nds_ip,
-				self_id=0,
-				leader_id=0,
-				peers={0: this_node},
+				self_id=app.active_group.self_id,
+				leader_id=app.active_group.self_id,
+				peers={app.active_group.self_id: this_node},
 			)
 
 			app.active_group = this_group
@@ -442,9 +443,11 @@ def call_for_synchronization(group_id, peer_logical_clock):
 		).to_json()
 
 	all_messages = app.message_store.get(group_id, [])
+	
 	missing_messages = [
 		msg for msg in all_messages if msg["logical_clock"] > peer_logical_clock
-	]
+	][-50:]
+
 
 	return CallForSynchronizationResponse(
 		ok=True,
