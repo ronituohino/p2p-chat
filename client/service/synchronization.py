@@ -96,31 +96,34 @@ def synchronize_with_leader(app):
 		return False
 
 	leader_ip = leader.ip
-	try:
-		remote_server = app.create_rpc_client(leader_ip, app.node_port)
-		response: CallForSynchronizationResponse = (
-			CallForSynchronizationResponse.from_json(
-				remote_server.call_for_synchronization(
-					group.group_id, app.logical_clock
+	attempts = 3
+	while attempts:
+		try:
+			remote_server = app.create_rpc_client(leader_ip, app.node_port)
+			response: CallForSynchronizationResponse = (
+				CallForSynchronizationResponse.from_json(
+					remote_server.call_for_synchronization(
+						group.group_id, app.logical_clock
+					)
 				)
 			)
-		)
-		if response.ok:
-			missing_messages = response.data.get("missing_messages", [])
-			if missing_messages:
-				logging.info(
-					f"Received {len(missing_messages)} missing messages from leader."
-				)
-				store_missing_messages(app, group.group_id, missing_messages)
-			else:
-				logging.info("No missing messages from leader")
+			if response.ok:
+				missing_messages = response.data.get("missing_messages", [])
+				if missing_messages:
+					logging.info(
+						f"Received {len(missing_messages)} missing messages from leader."
+					)
+					store_missing_messages(app, group.group_id, missing_messages)
+					return True
+				else:
+					logging.info("No missing messages from leader")
 
-		else:
-			logging.warning(f"Synchronization failed: {response.message}")
-	except Exception as e:
-		logging.error("Error during synchronization with leader", exc_info=True)
-		return False
-	return True
+			else:
+				logging.warning(f"Synchronization failed: {response.message}")
+		except Exception as e:
+			logging.error("Error during synchronization with leader", exc_info=True)
+			return False
+		return True
 
 
 def store_missing_messages(app, group_id, missing_messages):
