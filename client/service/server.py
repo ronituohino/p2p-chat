@@ -127,7 +127,6 @@ def create_group(group_name, nds_ip) -> Group | None:
 
 			app.active_group = this_group
 			start_overseer(app)
-
 			logging.info(f"Created group, {group_name}, with ID: {group_id}")
 			return this_group
 		else:
@@ -154,7 +153,7 @@ def request_to_leave_group(group: Group):
 	logging.info("Leaving group.")
 	if app.active_group and group.group_id == app.active_group.group_id:
 		app.active_group = None
-		app.networking.refresh_group(group)
+		app.networking.refresh_group(app.active_group)
 
 
 def request_to_join_group(leader_ip, group_id) -> Group | None:
@@ -182,8 +181,7 @@ def request_to_join_group(leader_ip, group_id) -> Group | None:
 			return response.group
 		else:
 			logging.error(f"Failed to join group with error: {response.message}")
-			group = app.active_group
-			app.networking.refresh_group(group)
+			app.networking.refresh_group(app.active_group)
 			return None
 	except ConnectionError as e:
 		logging.error(f"EXC: Failed to join group: {e}")
@@ -208,26 +206,24 @@ def join_group(peer_name, group_id):
 
 	logging.info(f"Peer {peer_name} requesting to join group.")
 	try:
-		group = app.active_group
-
-		if not group:
+		if not app.active_group:
 			return JoinGroupResponse(
 				ok=False, message="not-in-any-group", assigned_peer_id=-1, group=None
 			).to_json()
 
 		peer_ip = app.get_ip()
 
-		if group.leader_id != group.self_id:
+		if app.active_group.leader_id != app.active_group.self_id:
 			return JoinGroupResponse(
 				ok=False, message="not-leader", assigned_peer_id=-1, group=None
 			).to_json()
 
-		if group.group_id != group_id:
+		if app.active_group.group_id != group_id:
 			return JoinGroupResponse(
 				ok=False, message="not-in-that-group", assigned_peer_id=-1, group=None
 			).to_json()
 
-		for peer in group.peers.values():
+		for peer in app.active_group.peers.values():
 			if peer.name == peer_name and peer.ip == peer_ip:
 				# Overseeing
 				app.last_node_response[peer.node_id] = 0
@@ -235,20 +231,20 @@ def join_group(peer_name, group_id):
 					ok=True,
 					message="already-in-group",
 					assigned_peer_id=peer.node_id,
-					group=group,
+					group=app.active_group,
 				).to_json()
 
-		assigned_peer_id = max(group.peers.keys(), default=0) + 1
+		assigned_peer_id = max(app.active_group.peers.keys(), default=0) + 1
 
 		# Overseeing
 		app.last_node_response[assigned_peer_id] = 0
-		group.peers[assigned_peer_id] = Node(
+		app.active_group.peers[assigned_peer_id] = Node(
 			node_id=assigned_peer_id, name=peer_name, ip=peer_ip
 		)
-		app.networking.refresh_group(group)
+		app.networking.refresh_group(app.active_group)
 		logging.info(f"Peer {assigned_peer_id} joined with IP {peer_ip}")
 		return JoinGroupResponse(
-			ok=True, message="ok", group=group, assigned_peer_id=assigned_peer_id
+			ok=True, message="ok", group=app.active_group, assigned_peer_id=assigned_peer_id
 		).to_json()
 
 	except Exception as e:
@@ -305,7 +301,7 @@ def send_message(msg) -> bool:
 		)
 	else:
 		logging.error(
-			f"IP for leader {leader_ip} in group {app.active.group_id} does not exist."
+			f"IP for leader {leader_ip} in group {app.active_group.group_id} does not exist."
 		)
 		return False
 

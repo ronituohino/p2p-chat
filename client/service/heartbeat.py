@@ -85,7 +85,7 @@ def send_heartbeat_to_leader(app):
 			else:
 				logging.warning("HB: Leader said not ok, we got kicked!")
 				app.active_group = None
-				app.networking.refresh_group(None)
+				app.networking.refresh_group(app.active_group)
 		except Exception as e:
 			logging.error(f"EXC: HB: Error sending heartbeat to leader: {e}")
 			app.leader_election(app, active.group_id)
@@ -111,7 +111,7 @@ def send_heartbeat_to_nds(app):
 		if response.message == "group-deleted-womp-womp":
 			logging.error("HB: NDS deleted the group :(")
 			app.active_group = None
-			app.networking.refresh_group(None)
+			app.networking.refresh_group(app.active_group)
 		else:
 			logging.error("HB: NDS rejected heartbeat.")
 

@@ -80,6 +80,8 @@ class Networks(Static):
 		active_node = None
 		for nds in tree.root.children:
 			for node in nds.children:
+				if not node.data or not hasattr(node.data, "group_id"):
+					continue
 				if node.data.group_id == grp.group_id:
 					active_node = node
 					break

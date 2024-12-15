@@ -1,4 +1,3 @@
-
 import uuid
 import gevent
 import logging
@@ -99,41 +98,6 @@ def create_group(group_name):
 	last_leader_response[group_id] = 0
 	logging.info(f"Group creation successful for {group_name}")
 	return CreateGroupResponse(ok=True, group=new_group).to_json()
-
-
-@dispatcher.public
-def can_create_group(group_id=None):
-    """
-    Check if it is okay to create a new group.
-    If `group_id` is provided, checks if a leader exists for that group.
-    Otherwise, returns True by default.
-
-    Args:
-        group_id (str, optional): The ID of the group to check.
-
-    Returns:
-        Response: A JSON response indicating if it's okay to create a new group.
-    """
-    if group_id:
-        group = groups.get(group_id)
-        if group:
-            leader_ip = group.leader_ip
-            if leader_ip:
-                try:
-                    rpc_client = create_rpc_client(leader_ip, leader_port)
-                    leader = rpc_client.get_proxy()
-                    response: Response = Response.from_json(
-                        leader.still_leader_of_group(group_id)
-                    )
-                    if response.ok:
-                        return NDS_HeartbeatResponse(
-                            ok=False, message="A leader is still active for this group."
-                        ).to_json()
-                except Exception as e:
-                    logging.error(f"Error checking leader status: {e}")
-        return NDS_HeartbeatResponse(ok=True, message="No active leader found for the group.").to_json()
-    else:
-        return NDS_HeartbeatResponse(ok=True, message="Group creation is allowed.").to_json()
 
 
 ### HEARTBEAT

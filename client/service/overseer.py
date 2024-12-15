@@ -39,12 +39,24 @@ def overseer_thread(app, ov_id: int):
 				)
 				raise InterruptedError
 
-			logging.info(f"OV: last node responses: {app.last_node_response} and peers: {app.active_group.peers}")
+			logging.info(
+				f"OV: last node responses: {app.last_node_response} and peers: {app.active_group.peers}"
+			)
 			with app.overseer_lock:
+				if not app.last_node_response:
+					app.last_node_response = {
+						node_id: 0 for node_id in app.active_group.peers.keys()
+					}
+					logging.info(
+						f"Current last_node_response state: {app.last_node_response}"
+					)
 				logging.info(f"OV: overseer {ov_id} acquired lock")
+
 				nodes_to_delete = []
 				for node_id in app.last_node_response.keys():
-					logging.info(f"OV: node {node_id} has following node response count {app.last_node_response[node_id]}")
+					logging.info(
+						f"OV: node {node_id} has following node response count {app.last_node_response[node_id]}"
+					)
 					if node_id not in app.last_node_response:
 						app.last_node_response[node_id] = 0
 
@@ -64,7 +76,7 @@ def overseer_thread(app, ov_id: int):
 					logging.info(
 						f"OV: Node {node_id} deleted -- no heartbeat from node."
 					)
-
+				
 			updated_state = set(app.active_group.peers.keys())
 			added_peers = updated_state - previous_state
 			removed_peers = previous_state - updated_state

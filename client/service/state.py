@@ -18,10 +18,10 @@ class AppState:
 	def _initialize_state(instance):
 		"""Initializes all shared state variables."""
 		instance.name = None
-		instance._active_group: Group = None 
+		instance._active_group: Group = None
 		instance.logical_clock = 0
 
-		instance.message_store = {} 
+		instance.message_store = {}
 		instance.received_messages = set()
 		instance.message_timestamps = {}
 		instance.MESSAGE_TTL = 300
@@ -31,7 +31,7 @@ class AppState:
 		instance.node_port = 5001
 		instance.nds_port = 5002
 
-		instance.nds_servers = {}  
+		instance.nds_servers = {}
 		instance.dispatcher = None
 		instance.networking = None
 
@@ -45,9 +45,9 @@ class AppState:
 		instance.request_to_join_group = None
 
 		instance.heartbeat_min_interval = 2
-		instance.heartbeat_max_interval = 4
+		instance.heartbeat_max_interval = 60
 
-		instance.heartbeat = None 
+		instance.heartbeat = None
 		instance.heartbeat_counter = 0  # set to the id of the heartbeat
 		instance.heartbeat_kill_flags = set()
 
@@ -59,7 +59,7 @@ class AppState:
 		instance.overseer_kill_flags = set()
 		instance.overseer_lock = threading.Lock()
 		instance.overseer_cycles_timeout = 30
-		instance.overseer_interval = 2
+		instance.overseer_interval = 10
 
 	@property
 	def active_group(self):
@@ -68,6 +68,9 @@ class AppState:
 	@active_group.setter
 	def active_group(self, group):
 		self._active_group = group
+		if group:
+			with self.overseer_lock:
+				self.last_node_response = {node_id: 0 for node_id in group.peers.keys()}
 
 	def increment_clock(self):
 		self.logical_clock += 1

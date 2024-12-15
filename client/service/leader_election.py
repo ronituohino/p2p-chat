@@ -64,7 +64,7 @@ def become_leader(app):
 		logging.info("NDS has deleted the group already. Creating the group.")
 		new_group = app.create_group(group.group_name, group.nds_ip)
 		app.active_group = new_group
-		app.networking.refresh_group(new_group)
+		app.networking.refresh_group(app.active_group)
 
 	else:
 		current_leader_ip = new_nds_group.leader_ip
@@ -74,7 +74,7 @@ def become_leader(app):
 		new_group = app.request_to_join_group(current_leader_ip, new_nds_group.group_id)
 		logging.info(f"Group joined {new_group}")
 		app.active_group = new_group
-		app.networking.refresh_group(new_group)
+		app.networking.refresh_group(app.active_group)
 		synchronize_with_leader(app)
 
 
