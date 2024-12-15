@@ -112,6 +112,7 @@ def send_heartbeat_to_nds(app):
 			logging.error("HB: NDS deleted the group :(")
 			app.active_group = None
 			app.networking.refresh_group(app.active_group)
+			return False
 		else:
 			logging.error("HB: NDS rejected heartbeat.")
 
