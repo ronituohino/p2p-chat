@@ -82,7 +82,6 @@ def add_node_discovery_source(nds_ip):
 			remote_server.get_groups()
 		)
 		if response.ok:
-			app.active_group = response.groups
 			start_crawler(app)
 			return response.groups
 		else:
