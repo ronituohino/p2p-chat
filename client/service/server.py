@@ -1,10 +1,10 @@
-import asyncio
 import json
 import uuid
 import logging
 import gevent
 import gevent.pywsgi
 import gevent.queue
+
 import threading
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.wsgi import WsgiServerTransport
@@ -36,7 +36,11 @@ from client.structs.client import (
 )
 from client.structs.generic import Response
 from client.structs.nds import FetchGroupResponse, CreateGroupResponse
+
 # This needs the server to be on one thread, otherwise IPs will get messed up
+from gevent import monkey
+
+monkey.patch_all()
 
 
 # Custom WSGI app to handle IP extraction
@@ -180,6 +184,7 @@ def request_to_join_group(leader_ip, group_id) -> Group | None:
 	Returns:
 		list: A set of nodes if success.
 	"""
+	logging.info(f"Requesting to joing group, leader: {leader_ip}:{app.node_port}")
 	remote_server = app.create_rpc_client(leader_ip, app.node_port).get_proxy()
 	# This is request to leader
 	try:
@@ -207,7 +212,7 @@ app.request_to_join_group = request_to_join_group
 
 
 @dispatcher.public
-async def join_group(peer_name, group_id):
+def join_group(peer_name, group_id):
 	"""
 	This is called when a client asks the group leader if they could join.
 
@@ -325,7 +330,7 @@ def send_message(msg) -> bool:
 
 
 @dispatcher.public
-async def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
+def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock=0):
 	"""Handle receiving a message from peer.
 	If message is meant for current node, then it will store it, otherwise it will
 	broadcast it forward.
@@ -380,7 +385,7 @@ async def receive_message(msg, msg_id, group_id, source_id, leader_logical_clock
 
 
 @dispatcher.public
-async def receive_heartbeat(peer_id, group_id):
+def receive_heartbeat(peer_id, group_id):
 	if app.active_group.group_id != group_id:
 		return HeartbeatResponse(
 			ok=False, message="changed-group", peers=None, logical_clock=0
@@ -401,7 +406,7 @@ async def receive_heartbeat(peer_id, group_id):
 
 
 @dispatcher.public
-async def report_logical_clock(group_id):
+def report_logical_clock(group_id):
 	if group_id == app.active_group.group_id:
 		return ReportLogicalClockResponse(
 			ok=True,
@@ -411,7 +416,7 @@ async def report_logical_clock(group_id):
 
 
 @dispatcher.public
-async def election_message(group_id, candidate_id):
+def election_message(group_id, candidate_id):
 	if group_id == app.active_group.group_id:
 		self_id = app.active_group.self_id
 		if self_id < candidate_id:
@@ -422,7 +427,7 @@ async def election_message(group_id, candidate_id):
 
 
 @dispatcher.public
-async def still_leader_of_group(group_id):
+def still_leader_of_group(group_id):
 	"""Check if still a leader of the group."""
 	if (
 		app.active_group
@@ -435,7 +440,7 @@ async def still_leader_of_group(group_id):
 
 
 @dispatcher.public
-async def update_leader(group_id, new_leader_id):
+def update_leader(group_id, new_leader_id):
 	"""Update the new leader."""
 	if app.active_group and app.active_group.group_id == group_id:
 		app.active_group.leader_id = new_leader_id
@@ -445,7 +450,7 @@ async def update_leader(group_id, new_leader_id):
 
 
 @dispatcher.public
-async def call_for_synchronization(group_id, peer_logical_clock):
+def call_for_synchronization(group_id, peer_logical_clock):
 	logging.info("Calling for synchronization.")
 	if group_id != app.active_group.group_id:
 		return CallForSynchronizationResponse(
@@ -463,8 +468,6 @@ async def call_for_synchronization(group_id, peer_logical_clock):
 	except TypeError as e:
 		logging.error(f"Serialization error: {e}")
 
-	await asyncio.sleep(0)
-
 	return CallForSynchronizationResponse(
 		ok=True,
 		message="Missing messages sent.",
@@ -473,7 +476,7 @@ async def call_for_synchronization(group_id, peer_logical_clock):
 
 
 @dispatcher.public
-async def update_messages(group_id, messages):
+def update_messages(group_id, messages):
 	group = app.active_group
 
 	if group_id == group.group_id:
