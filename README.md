@@ -155,14 +155,6 @@ Code is formatted and linted using [ruff](https://docs.astral.sh/ruff/). VS Code
 has a nice extension for it, be sure to enable it as the default Python
 formatter.
 
-### Client ui development
-
-For effective ui development, launch the app with fake networking layer:
-
-```
-uv run ui.py
-```
-
 ### Tests
 
 Run in directory of the service
