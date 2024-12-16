@@ -24,7 +24,6 @@ from client.structs.nds import (
 # This needs the server to be on one thread, otherwise IPs will get messed up
 env = None
 
-
 # Custom WSGI app to handle IP extraction
 class CustomWSGITransport(WsgiServerTransport):
 	def handle(self, environ, start_response):
@@ -189,6 +188,6 @@ def update_group_leader(group_id):
 		return UpdateGroupResponse(ok=True, message="ok", group=group).to_json()
 
 
-if __name__ == "__main__":
+def main():
 	logging.basicConfig(filename="nds.log", level=logging.INFO)
 	serve()
