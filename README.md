@@ -134,7 +134,7 @@ uv sync
 To run NDS, note that a client should not be run on the same computer as NDS, because IP addresses could get fumbled.
 
 ```
-uv run nds.py
+uv run nds_serve.py
 ```
 
 To run client
